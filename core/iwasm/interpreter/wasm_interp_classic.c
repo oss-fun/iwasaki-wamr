@@ -10,6 +10,8 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
+#include "../migration/wasm_dump.h"
+#include "../migration/wasm_restore.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -1210,9 +1212,34 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 #undef HANDLE_OPCODE
 #endif
 
+    signal(SIGINT, &wasm_interp_sigint);
+
+    if (restore_flag) {
+        bool done_flag;
+        int rc = restore(module, exec_env, memory, globals,
+                        frame_ip, frame_lp, frame_sp, frame_csp,
+                        frame_ip_end, else_addr, maddr, &done_flag);
+        if (!rc) {
+            // error
+            perror("failed to restore\n");
+            exit(1);
+        }
+        UPDATE_ALL_FROM_FRAME();
+        if (!done_flag) {
+            // TODO: I haven't understood the think of this line developer.
+            goto label_op_call;
+        }
+        goto restore_point;
+    }
+
+
 #if WASM_ENABLE_LABELS_AS_VALUES == 0
     while (frame_ip < frame_ip_end) {
         opcode = *frame_ip++;
+restore_point:
+    step++;
+    frame_prev_ip = frame_ip;
+    opcode = *frame_ip++;
         switch (opcode) {
 #else
     FETCH_OPCODE_AND_DISPATCH();
