@@ -29,4 +29,18 @@ wasm_dump_frame(WASMExecEnv *exec_env);
 static void
 dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp);
 
+int dump(const WASMExecEnv *exec_env,
+         const WASMMemoryInstance *meomry,
+         const WASMGlobalInstance *globals,
+         const WASMFunctionInstance *cur_func,
+         const WASMInterpFrame *frame,
+         const register uint8 *frame_ip,
+         const register uint32 *frame_sp,
+         const WASMBranchBlock *frame_csp,
+         const uint8 *frame_ip_end,
+         const uint8 *else_addr,
+         const uint8 *end_addr,
+         const uint8 *maddr,
+         const bool done_flag);
+
 #endif // _WASM_CHECKPOINT_H

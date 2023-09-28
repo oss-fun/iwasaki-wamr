@@ -302,8 +302,7 @@ int restore(WASMModuleInstance *module,
             uint8 *else_addr,
             uint8 *end_addr,
             uint8 *maddr,
-            bool *done_flag
-            ) 
+            bool *done_flag) 
 {
     const char* img_dir = "";
 
@@ -384,4 +383,6 @@ int restore(WASMModuleInstance *module,
 
     fclose(fp);
     printf("frame_ip:%x\n", frame_ip - cur_func->u.func->code);
+
+    return 0;
 }

@@ -1099,7 +1099,13 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
-#define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++]
+#define FETCH_OPCODE_AND_DISPATCH() do { \
+    printf("sig_flag: %d\n", sig_flag);            \
+    if (sig_flag) {                      \
+        goto migrtion_async;             \
+    }                                    \
+    goto *handle_table[*frame_ip++];     \
+} while(0);                          
 
 #if WASM_ENABLE_THREAD_MGR != 0 && WASM_ENABLE_DEBUG_INTERP != 0
 #define HANDLE_OP_END()                                                   \
@@ -1151,6 +1157,15 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
                      + global->import_global_inst->data_offset
                : global_data + global->data_offset;
 #endif
+}
+
+static bool sig_flag = false;
+static void (*native_handler)(void) = NULL;
+bool done_flag = false;
+void
+wasm_interp_sigint(int signum)
+{
+    sig_flag = true;
 }
 
 static void
@@ -1215,11 +1230,11 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     signal(SIGINT, &wasm_interp_sigint);
 
     if (restore_flag) {
-        bool done_flag;
+        // bool done_flag;
         int rc = restore(module, exec_env, memory, globals,
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, maddr, &done_flag);
-        if (!rc) {
+        if (rc < 0) {
             // error
             perror("failed to restore\n");
             exit(1);
@@ -1235,13 +1250,24 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0
     while (frame_ip < frame_ip_end) {
-        opcode = *frame_ip++;
 restore_point:
     step++;
     frame_prev_ip = frame_ip;
     opcode = *frame_ip++;
         switch (opcode) {
 #else
+migration_async:
+    if (sig_flag) {
+        sync_all_to_frame();
+        int rc = dump(exec_env, memory, globals, cur_func,
+            frame, frame_ip, frame_sp, frame_csp,
+            frame_ip_end, else_addr, end_addr, maddr, done_flag);
+        if (rc < 0) {
+            perror("failed to dump\n");
+            exit(1);
+        }
+        exit(0);     
+    }
     FETCH_OPCODE_AND_DISPATCH();
 #endif
             /* control instructions */
@@ -4298,9 +4324,15 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
 #endif
         {
             /* it is a native function */
-            wasm_interp_call_func_native(module_inst, exec_env, function,
+            done_flag = wasm_interp_call_func_native(module_inst, exec_env, function,
                                          frame);
         }
+        if (!done_flag) {
+            *frame = pframe;
+            UPDATE_ALL_FROM_FRAME();
+            goto migration_async;
+        } 
+
     }
     else {
         RunningMode running_mode =
