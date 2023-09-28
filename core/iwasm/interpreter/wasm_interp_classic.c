@@ -1231,9 +1231,10 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
     if (restore_flag) {
         // bool done_flag;
-        int rc = restore(module, exec_env, memory, globals,
-                        frame_ip, frame_lp, frame_sp, frame_csp,
-                        frame_ip_end, else_addr, maddr, &done_flag);
+        int rc = restore(module, exec_env, cur_func, prev_frame,
+                        memory, globals, global_data,
+                        frame, frame_ip, frame_lp, frame_sp, frame_csp,
+                        frame_ip_end, else_addr, end_addr, maddr, &done_flag);
         if (rc < 0) {
             // error
             perror("failed to restore\n");

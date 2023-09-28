@@ -1,9 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "common/wasm_exec_env.h"
-#include "common/wasm_memory.h"
-#include "interpreter/wasm_runtime.h"
+#include "../common/wasm_exec_env.h"
+#include "../common/wasm_memory.h"
+#include "../interpreter/wasm_runtime.h"
 #include "wasm_dump.h"
 #include "wasm_restore.h"
 
@@ -292,8 +292,12 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 
 int restore(WASMModuleInstance *module,
             WASMExecEnv *exec_env,
+            WASMFunctionInstance *cur_func,
+            WASMInterpFrame *prev_frame,
             WASMMemoryInstance *memory,
             WASMGlobalInstance *globals,
+            uint8 *global_data,
+            WASMInterpFrame *frame,
             register uint8 *frame_ip,
             register uint32 *frame_lp,
             register uint32 *frame_sp,
@@ -318,7 +322,7 @@ int restore(WASMModuleInstance *module,
     prev_frame = frame->prev_frame;
 
 
-    FILE* fp = openImg(img_dir, "interp.img")
+    FILE* fp = openImg(img_dir, "interp.img");
     if (fp == NULL) {
         perror("failed to openImg\n");
         return -1;
@@ -330,7 +334,7 @@ int restore(WASMModuleInstance *module,
             memory->num_bytes_per_page * memory->cur_page_count, fp);
 
     // uint8 *global_data = module->global_data;
-    for (i = 0; i < module->global_count; i++) {
+    for (int i = 0; i < module->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:

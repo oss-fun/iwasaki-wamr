@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "interpreter/wasm_runtime.h"
-#include "common/wasm_dump.h"
+#include "../interpreter/wasm_runtime.h"
+#include "../common/wasm_dump.h"
 
 static Frame_Info *root_info = NULL, *tail_info = NULL;
 
