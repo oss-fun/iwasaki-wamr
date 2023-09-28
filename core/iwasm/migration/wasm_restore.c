@@ -297,6 +297,7 @@ int restore(WASMModuleInstance *module,
             WASMMemoryInstance *memory,
             WASMGlobalInstance *globals,
             uint8 *global_data,
+            uint8 *global_addr,
             WASMInterpFrame *frame,
             register uint8 *frame_ip,
             register uint32 *frame_lp,
@@ -334,7 +335,7 @@ int restore(WASMModuleInstance *module,
             memory->num_bytes_per_page * memory->cur_page_count, fp);
 
     // uint8 *global_data = module->global_data;
-    for (int i = 0; i < module->global_count; i++) {
+    for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
