@@ -11,7 +11,7 @@ static void
 restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env,
                         FILE *fp);
 
-int restore(WASMModuleInstance *module,
+int wasm_restore(WASMModuleInstance *module,
             WASMExecEnv *exec_env,
             WASMFunctionInstance *cur_func,
             WASMInterpFrame *prev_frame,
