@@ -4,8 +4,8 @@
 #include "../common/wasm_exec_env.h"
 #include "../common/wasm_memory.h"
 #include "../interpreter/wasm_runtime.h"
-#include "wasm_dump.h"
-#include "wasm_restore.h"
+#include "wasm_migration.h"
+// #include "wasm_restore.h"
 
 static Frame_Info *root_info = NULL, *tail_info = NULL;
 
@@ -28,25 +28,25 @@ FILE* openImg(const char* img_dir, const char* file_path) {
     return fp;
 }
 
-static inline WASMInterpFrame *
-ALLOC_FRAME(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
-{
-    WASMInterpFrame *frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
+// static inline WASMInterpFrame *
+// ALLOC_FRAME(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
+// {
+//     WASMInterpFrame *frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
 
-    if (frame) {
-        wasm_dump_alloc_frame(frame, exec_env);
-        frame->prev_frame = prev_frame;
-#if WASM_ENABLE_PERF_PROFILING != 0
-        frame->time_started = os_time_get_boot_microsecond();
-#endif
-    }
-    else {
-        wasm_set_exception((WASMModuleInstance *)exec_env->module_inst,
-                           "wasm operand stack overflow");
-    }
+//     if (frame) {
+//         wasm_dump_alloc_frame(frame, exec_env);
+//         frame->prev_frame = prev_frame;
+// #if WASM_ENABLE_PERF_PROFILING != 0
+//         frame->time_started = os_time_get_boot_microsecond();
+// #endif
+//     }
+//     else {
+//         wasm_set_exception((WASMModuleInstance *)exec_env->module_inst,
+//                            "wasm operand stack overflow");
+//     }
 
-    return frame;
-}
+//     return frame;
+// }
 
 WASMInterpFrame *
 wasm_restore_frame(WASMExecEnv *exec_env, const char *img_dir)
@@ -91,7 +91,7 @@ wasm_restore_frame(WASMExecEnv *exec_env, const char *img_dir)
         }
         else {
             // 関数からスタックサイズを計算し,ALLOC
-            function = module_inst->functions + func_idx;
+            function = module_inst->e->functions + func_idx;
             printf("restore func_idx: %d\n", func_idx);
 
             all_cell_num = (uint64)function->param_cell_num
@@ -387,7 +387,6 @@ int wasm_restore(WASMModuleInstance *module,
     // SYNC_ALL_TO_FRAME();
 
     fclose(fp);
-    printf("frame_ip:%x\n", frame_ip - cur_func->u.func->code);
 
     return 0;
 }

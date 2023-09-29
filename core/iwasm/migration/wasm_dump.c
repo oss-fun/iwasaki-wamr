@@ -2,7 +2,7 @@
 #include <stdlib.h>
 
 #include "../interpreter/wasm_runtime.h"
-#include "../common/wasm_dump.h"
+#include "wasm_migration.h"
 
 static Frame_Info *root_info = NULL, *tail_info = NULL;
 
@@ -79,7 +79,7 @@ wasm_dump_frame(WASMExecEnv *exec_env)
             fwrite(&info->all_cell_num, sizeof(uint32), 1, fp);
         }
         else {
-            func_idx = info->frame->function - module_inst->functions;
+            func_idx = info->frame->function - module_inst->e->functions;
             fwrite(&func_idx, sizeof(uint32), 1, fp);
             printf("dump func_idx: %d\n", func_idx);
 
@@ -201,8 +201,11 @@ dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 }
 
 int wasm_dump(WASMExecEnv *exec_env,
-         WASMMemoryInstance *meomry,
+         WASMModuleInstance *module,
+         WASMMemoryInstance *memory,
          WASMGlobalInstance *globals,
+         uint8 *global_data,
+         uint8 *global_addr,
          WASMFunctionInstance *cur_func,
          WASMInterpFrame *frame,
          register uint8 *frame_ip,
@@ -226,7 +229,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     // uint32 num_bytes_per_page = memory ? memory->num_bytes_per_page :
     // 0;
     // uint8 *global_data = module->global_data;
-    for (i = 0; i < module->global_count; i++) {
+    for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
@@ -279,15 +282,9 @@ int wasm_dump(WASMExecEnv *exec_env,
     fwrite(&p_offset, sizeof(uint32), 1, fp);
 
     fwrite(&done_flag, sizeof(done_flag), 1, fp);
-
-    if (native_handler != NULL) {
-        (*native_handler)();
-    }
-
     fclose(fp);
 
-    printf("step:%ld\n", step);
-    printf("frame_ip:%x\n", frame_ip - cur_func->u.func->code);
-
+    // printf("step:%ld\n", step);
+    // printf("frame_ip:%x\n", frame_ip - cur_func->u.func->code);
     return 0;
 }

@@ -10,8 +10,8 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
-#include "../migration/wasm_dump.h"
-#include "../migration/wasm_restore.h"
+#include "../migration/wasm_dump.c"
+#include "../migration/wasm_restore.c"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -1263,7 +1263,8 @@ restore_point:
 migration_async:
     if (sig_flag) {
         SYNC_ALL_TO_FRAME();
-        int rc = wasm_dump(exec_env, memory, globals, cur_func,
+        int rc = wasm_dump(exec_env, module, memory, 
+            globals, global_data, global_addr, cur_func,
             frame, frame_ip, frame_sp, frame_csp,
             frame_ip_end, else_addr, end_addr, maddr, done_flag);
         if (rc < 0) {
