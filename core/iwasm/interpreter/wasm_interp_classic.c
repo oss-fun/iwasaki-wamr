@@ -1099,13 +1099,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
-#define FETCH_OPCODE_AND_DISPATCH() do { \
-    printf("sig_flag: %d\n", sig_flag);            \
-    if (sig_flag) {                      \
-        goto migrtion_async;             \
-    }                                    \
-    goto *handle_table[*frame_ip++];     \
-} while(0);                          
+#define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++];
 
 #if WASM_ENABLE_THREAD_MGR != 0 && WASM_ENABLE_DEBUG_INTERP != 0
 #define HANDLE_OP_END()                                                   \
@@ -1124,7 +1118,15 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
         goto *handle_table[*frame_ip++];                                  \
     } while (0)
 #else
-#define HANDLE_OP_END() FETCH_OPCODE_AND_DISPATCH()
+#define CHECK_DUMP()                                                        \
+    if (sig_flag) {                                                         \
+        goto migration_async;                                               \
+    }
+#define HANDLE_OP_END()                                                     \
+    do {                                                                    \
+        CHECK_DUMP()                                                        \
+        FETCH_OPCODE_AND_DISPATCH()                                         \
+    } while(0);
 #endif
 
 #else /* else of WASM_ENABLE_LABELS_AS_VALUES */
@@ -1160,6 +1162,7 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
 }
 
 static bool sig_flag = false;
+static bool restore_flag = false;
 static void (*native_handler)(void) = NULL;
 bool done_flag = false;
 void
@@ -1231,7 +1234,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
     if (restore_flag) {
         // bool done_flag;
-        int rc = restore(module, exec_env, cur_func, prev_frame,
+        int rc = wasm_restore(module, exec_env, cur_func, prev_frame,
                         memory, globals, global_data, global_addr,
                         frame, frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, &done_flag);
@@ -1243,9 +1246,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         UPDATE_ALL_FROM_FRAME();
         if (!done_flag) {
             // TODO: I haven't understood the think of this line developer.
-            goto label_op_call;
+            goto handle_op_call;
         }
-        goto restore_point;
+        FETCH_OPCODE_AND_DISPATCH();
     }
 
 
@@ -1259,8 +1262,8 @@ restore_point:
 #else
 migration_async:
     if (sig_flag) {
-        sync_all_to_frame();
-        int rc = dump(exec_env, memory, globals, cur_func,
+        SYNC_ALL_TO_FRAME();
+        int rc = wasm_dump(exec_env, memory, globals, cur_func,
             frame, frame_ip, frame_sp, frame_csp,
             frame_ip_end, else_addr, end_addr, maddr, done_flag);
         if (rc < 0) {
@@ -1492,6 +1495,7 @@ migration_async:
 
             HANDLE_OP(WASM_OP_CALL)
             {
+            handle_op_call:
 #if WASM_ENABLE_THREAD_MGR != 0
                 CHECK_SUSPEND_FLAGS();
 #endif
@@ -4325,14 +4329,14 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
 #endif
         {
             /* it is a native function */
-            done_flag = wasm_interp_call_func_native(module_inst, exec_env, function,
+            wasm_interp_call_func_native(module_inst, exec_env, function,
                                          frame);
         }
-        if (!done_flag) {
+        // if (!done_flag) {
             // *frame = pframe;
             // UPDATE_ALL_FROM_FRAME();
-            goto migration_async;
-        } 
+            // goto migration_async;
+        // } 
 
     }
     else {
