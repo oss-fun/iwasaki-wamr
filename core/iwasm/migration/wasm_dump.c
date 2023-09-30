@@ -131,17 +131,19 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
     }
 }
 
-void
+int
 wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 {
     WASMModuleInstance *module =
         (WASMModuleInstance *)exec_env->module_inst;
     WASMFunctionInstance *function;
 
-    FILE *fp = fopen("frame.img", "wb");
+    FILE *fp;
+    const char *file = "frame.img";
+    fp = fopen(file, "wb");
     if (fp == NULL) {
-        perror("failed to open frame.img");    
-        exit(1);
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
     }
 
     // frameを先頭から末尾まで走査する
@@ -163,6 +165,105 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     }
 
     fclose(fp);
+    return 0;
+}
+
+int wasm_dump_memory(WASMMemoryInstance *memory) {
+    FILE *fp;
+    const char *file = "mem.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    // WASMMemoryInstance *memory = module->default_memory;
+    fwrite(memory->memory_data, sizeof(uint8),
+           memory->num_bytes_per_page * memory->cur_page_count, fp);
+
+    fclose(fp);
+}
+
+int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
+    FILE *fp;
+    const char *file = "glob.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    // WASMMemoryInstance *memory = module->default_memory;
+    uint8 *global_addr;
+    for (int i = 0; i < module->e->global_count; i++) {
+        switch (globals[i].type) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
+                fwrite(global_addr, sizeof(uint32), 1, fp);
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
+                fwrite(global_addr, sizeof(uint64), 1, fp);
+                break;
+            default:
+                printf("type error:B\n");
+                break;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int wasm_dump_addrs(
+        WASMInterpFrame *frame,
+        WASMFunctionInstance *func,
+        WASMMemoryInstance *memory,
+        uint8 *frame_ip,
+        uint32 *frame_sp,
+        WASMBranchBlock *frame_csp,
+        uint8 *frame_ip_end,
+        uint8 *else_addr,
+        uint8 *end_addr,
+        uint8 *maddr,
+        bool done_flag) 
+{
+    FILE *fp;
+    const char *file = "addr.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    uint32 p_offset;
+    // register uint8 *frame_ip = &opcode_IMPDEP;
+    p_offset = frame_ip - wasm_get_func_code(func);
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // register uint32 *frame_lp = NULL;
+    // register uint32 *frame_sp = NULL;
+    p_offset = frame_sp - frame->sp_bottom;
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+
+    // WASMBranchBlock *frame_csp = NULL;
+    p_offset = frame_csp - frame->csp_bottom;
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+
+    p_offset = else_addr - wasm_get_func_code(func);
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+
+    p_offset = end_addr - wasm_get_func_code(func);
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+
+    p_offset = maddr - memory->memory_data;
+    fwrite(&p_offset, sizeof(uint32), 1, fp);
+
+    fwrite(&done_flag, sizeof(done_flag), 1, fp);
+
+    fclose(fp);
+    return 0;
 }
 
 int wasm_dump(WASMExecEnv *exec_env,
@@ -182,6 +283,7 @@ int wasm_dump(WASMExecEnv *exec_env,
          uint8 *maddr,
          bool done_flag) 
 {
+    int rc;
     FILE *fp;
     fp = fopen("interp.img", "wb");
     if (fp == NULL) {
@@ -189,63 +291,84 @@ int wasm_dump(WASMExecEnv *exec_env,
         return -1;
     }
     // WASMMemoryInstance *memory = module->default_memory;
-    fwrite(memory->memory_data, sizeof(uint8),
-           memory->num_bytes_per_page * memory->cur_page_count, fp);
+    // fwrite(memory->memory_data, sizeof(uint8),
+    //        memory->num_bytes_per_page * memory->cur_page_count, fp);
+    rc = wasm_dump_memory(memory);
+    if (rc < 0) {
+        return rc;
+    }
+    printf("Success to dump linear memory\n");
     // uint32 num_bytes_per_page = memory ? memory->num_bytes_per_page :
     // 0;
     // uint8 *global_data = module->global_data;
-    for (int i = 0; i < module->e->global_count; i++) {
-        switch (globals[i].type) {
-            case VALUE_TYPE_I32:
-            case VALUE_TYPE_F32:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint32), 1, fp);
-                break;
-            case VALUE_TYPE_I64:
-            case VALUE_TYPE_F64:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint64), 1, fp);
-                break;
-            default:
-                printf("type error:B\n");
-                break;
-        }
+    // for (int i = 0; i < module->e->global_count; i++) {
+    //     switch (globals[i].type) {
+    //         case VALUE_TYPE_I32:
+    //         case VALUE_TYPE_F32:
+    //             global_addr = get_global_addr_for_migration(global_data, (globals+i));
+    //             fwrite(global_addr, sizeof(uint32), 1, fp);
+    //             break;
+    //         case VALUE_TYPE_I64:
+    //         case VALUE_TYPE_F64:
+    //             global_addr = get_global_addr_for_migration(global_data, (globals+i));
+    //             fwrite(global_addr, sizeof(uint64), 1, fp);
+    //             break;
+    //         default:
+    //             printf("type error:B\n");
+    //             break;
+    //     }
+    // }
+    rc = wasm_dump_global(module, globals, global_data);
+    if (rc < 0) {
+        return rc;
     }
+    printf("Success to dump globals\n");
     // uint32 linear_mem_size =
     //     memory ? num_bytes_per_page * memory->cur_page_count : 0;
     // WASMType **wasm_types = module->module->types;
     // WASMGlobalInstance *globals = module->globals, *global;
     // uint8 opcode_IMPDEP = WASM_OP_IMPDEP;
     // WASMInterpFrame *frame = NULL;
-    wasm_dump_frame(exec_env, frame);
+    rc = wasm_dump_frame(exec_env, frame);
+    if (rc < 0) {
+        return rc;
+    }
+    printf("Success to dump frame\n");
 
-    uint32 p_offset;
-    // register uint8 *frame_ip = &opcode_IMPDEP;
-    p_offset = frame_ip - wasm_get_func_code(cur_func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
-    // register uint32 *frame_lp = NULL;
-    // register uint32 *frame_sp = NULL;
-    p_offset = frame_sp - frame->sp_bottom;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // uint32 p_offset;
+    // // register uint8 *frame_ip = &opcode_IMPDEP;
+    // p_offset = frame_ip - wasm_get_func_code(cur_func);
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // // register uint32 *frame_lp = NULL;
+    // // register uint32 *frame_sp = NULL;
+    // p_offset = frame_sp - frame->sp_bottom;
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
 
-    // WASMBranchBlock *frame_csp = NULL;
-    p_offset = frame_csp - frame->csp_bottom;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
-    // BlockAddr *cache_items;
-    // uint8 *frame_ip_end = frame_ip + 1;
-    // uint8 opcode;
-    // uint32 i, depth, cond, count, fidx, tidx, lidx, frame_size = 0;
-    // uint64 all_cell_num = 0;
-    // int32 val;
-    // uint8 *else_addr, *end_addr, *maddr = NULL;
-    p_offset = else_addr - wasm_get_func_code(cur_func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
-    p_offset = end_addr - wasm_get_func_code(cur_func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
-    p_offset = maddr - memory->memory_data;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // // WASMBranchBlock *frame_csp = NULL;
+    // p_offset = frame_csp - frame->csp_bottom;
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // // BlockAddr *cache_items;
+    // // uint8 *frame_ip_end = frame_ip + 1;
+    // // uint8 opcode;
+    // // uint32 i, depth, cond, count, fidx, tidx, lidx, frame_size = 0;
+    // // uint64 all_cell_num = 0;
+    // // int32 val;
+    // // uint8 *else_addr, *end_addr, *maddr = NULL;
+    // p_offset = else_addr - wasm_get_func_code(cur_func);
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // p_offset = end_addr - wasm_get_func_code(cur_func);
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
+    // p_offset = maddr - memory->memory_data;
+    // fwrite(&p_offset, sizeof(uint32), 1, fp);
 
-    fwrite(&done_flag, sizeof(done_flag), 1, fp);
+    // fwrite(&done_flag, sizeof(done_flag), 1, fp);
+    rc = wasm_dump_addrs(frame, cur_func, memory, 
+                    frame_ip, frame_sp, frame_csp, frame_ip_end,
+                    else_addr, end_addr, maddr, done_flag);
+    if (rc < 0) {
+        return rc;
+    }
+    printf("Success to dump addrs\n");
     fclose(fp);
 
     // printf("step:%ld\n", step);
