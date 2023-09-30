@@ -388,69 +388,19 @@ int wasm_restore(WASMModuleInstance *module,
         return -1;
     }
 
-    // WASMMemoryInstance *memory = module->default_memory;
-    // fread(memory->memory_data, sizeof(uint8),
-    //         memory->num_bytes_per_page * memory->cur_page_count, fp);
+    // restore memory
     wasm_restore_memory(memory);
     printf("Success to restore linear memory\n");
 
-    // uint8 *global_data = module->global_data;
-    // for (int i = 0; i < module->e->global_count; i++) {
-    //     switch (globals[i].type) {
-    //         case VALUE_TYPE_I32:
-    //         case VALUE_TYPE_F32:
-    //             global_addr = get_global_addr_for_migration(global_data, globals + i);
-    //             fread(global_addr, sizeof(uint32), 1, fp);
-    //             break;
-    //         case VALUE_TYPE_I64:
-    //         case VALUE_TYPE_F64:
-    //             global_addr = get_global_addr_for_migration(global_data, globals + i);
-    //             fread(global_addr, sizeof(uint64), 1, fp);
-    //             break;
-    //         default:
-    //             printf("type error:A\n");
-    //             break;
-    //     }
-    // }
+    // restore globals
     wasm_restore_global(module, globals, global_data, global_addr);
     printf("Success to restore globals\n");
 
-
-    // uint32 p_offset;
-    // // register uint8 *frame_ip = &opcode_IMPDEP;
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // frame_ip = wasm_get_func_code(frame->function) + p_offset;
-
-    // // register uint32 *frame_lp = NULL;
-    // frame_lp = frame->lp;
-    // // register uint32 *frame_sp = NULL;
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // frame_sp = frame->sp_bottom + p_offset;
-
-    // // WASMBranchBlock *frame_csp = NULL;
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // frame_csp = frame->csp_bottom + p_offset;
-
-    // // uint8 *frame_ip_end = frame_ip + 1;
-    // frame_ip_end = wasm_get_func_code_end(frame->function);
-
-    // // uint8 *else_addr, *end_addr, *maddr;
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // else_addr = wasm_get_func_code(cur_func) + p_offset;
-
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // end_addr = wasm_get_func_code(cur_func) + p_offset;
-
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // maddr = memory->memory_data + p_offset;
-
-    // fread(done_flag, sizeof(bool), 1, fp);
+    // restore addrs
     wasm_restore_addrs(frame, cur_func, memory, 
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, done_flag);
     printf("Success to restore addrs\n");
-
-    // SYNC_ALL_TO_FRAME();
 
     fclose(fp);
     printf("Success to close fp\n");
