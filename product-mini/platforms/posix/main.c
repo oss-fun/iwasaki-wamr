@@ -823,8 +823,6 @@ main(int argc, char *argv[])
         }
 #endif
         else if (!strncmp(argv[0], "--restore", 9)) {
-           if (argv[0][9] == '\0') 
-               return print_help();
            restore_flag = true;
         }
         else if (!strncmp(argv[0], "--version", 9)) {
