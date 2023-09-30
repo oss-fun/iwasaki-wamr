@@ -170,7 +170,7 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
     FILE *fp;
-    const char *file = "mem.img";
+    const char *file = "memory.img";
     fp = fopen(file, "wb");
     if (fp == NULL) {
         fprintf(stderr, "failed to open %s\n", file);
@@ -186,7 +186,7 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
     FILE *fp;
-    const char *file = "glob.img";
+    const char *file = "global.img";
     fp = fopen(file, "wb");
     if (fp == NULL) {
         fprintf(stderr, "failed to open %s\n", file);
