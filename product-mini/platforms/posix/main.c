@@ -109,6 +109,7 @@ print_help()
 #if WASM_ENABLE_STATIC_PGO != 0
     printf("  --gen-prof-file=<path>   Generate LLVM PGO (Profile-Guided Optimization) profile file\n");
 #endif
+    printf("  --restore                Restore from frame.img and interp.img\n");
     printf("  --version                Show version information\n");
     return 1;
 }
@@ -820,6 +821,11 @@ main(int argc, char *argv[])
             gen_prof_file = argv[0] + 16;
         }
 #endif
+        else if (!strncmp(argv[0], "--restore", 9)) {
+           if (argv[0][9] == '\0') 
+               return print_help();
+           set_restore_flag();
+        }
         else if (!strncmp(argv[0], "--version", 9)) {
             uint32 major, minor, patch;
             wasm_runtime_get_version(&major, &minor, &patch);
