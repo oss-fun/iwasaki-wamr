@@ -1232,24 +1232,24 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
     signal(SIGINT, &wasm_interp_sigint);
 
-    // if (restore_flag) {
-    //     // bool done_flag;
-    //     int rc = wasm_restore(module, exec_env, cur_func, prev_frame,
-    //                     memory, globals, global_data, global_addr,
-    //                     frame, frame_ip, frame_lp, frame_sp, frame_csp,
-    //                     frame_ip_end, else_addr, end_addr, maddr, &done_flag);
-    //     if (rc < 0) {
-    //         // error
-    //         perror("failed to restore\n");
-    //         exit(1);
-    //     }
-    //     UPDATE_ALL_FROM_FRAME();
-    //     if (!done_flag) {
-    //         // TODO: I haven't understood the think of this line developer.
-    //         goto handle_op_call;
-    //     }
-    //     FETCH_OPCODE_AND_DISPATCH();
-    // }
+    if (restore_flag) {
+        // bool done_flag;
+        int rc = wasm_restore(module, exec_env, cur_func, prev_frame,
+                        memory, globals, global_data, global_addr,
+                        frame, frame_ip, frame_lp, frame_sp, frame_csp,
+                        frame_ip_end, else_addr, end_addr, maddr, &done_flag);
+        if (rc < 0) {
+            // error
+            perror("failed to restore\n");
+            exit(1);
+        }
+        UPDATE_ALL_FROM_FRAME();
+        if (!done_flag) {
+            // TODO: I haven't understood the think of this line developer.
+            goto handle_op_call;
+        }
+        FETCH_OPCODE_AND_DISPATCH();
+    }
 
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0

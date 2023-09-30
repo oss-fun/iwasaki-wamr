@@ -4,6 +4,19 @@
 #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
+static inline uint8 *
+get_global_addr_for_migration(uint8 *global_data, WASMGlobalInstance *global)
+{
+#if WASM_ENABLE_MULTI_MODULE == 0
+    return global_data + global->data_offset;
+#else
+    return global->import_global_inst
+               ? global->import_module_inst->global_data
+                     + global->import_global_inst->data_offset
+               : global_data + global->data_offset;
+#endif
+}
+
 // void
 // wasm_migration_alloc_frame(WASMInterpFrame *frame, WASMExecEnv *exec_env)
 // {

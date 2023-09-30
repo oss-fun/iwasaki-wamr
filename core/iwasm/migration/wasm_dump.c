@@ -2,23 +2,11 @@
 #include <stdlib.h>
 
 #include "../interpreter/wasm_runtime.h"
+#include "wasm_migration.h"
 
 int all_cell_num_of_dummy_frame = -1;
 void set_all_cell_num_of_dummy_frame(int all_cell_num) {
     all_cell_num_of_dummy_frame = all_cell_num;
-}
-
-static inline uint8 *
-get_global_addr_for_dump(uint8 *global_data, WASMGlobalInstance *global)
-{
-#if WASM_ENABLE_MULTI_MODULE == 0
-    return global_data + global->data_offset;
-#else
-    return global->import_global_inst
-               ? global->import_module_inst->global_data
-                     + global->import_global_inst->data_offset
-               : global_data + global->data_offset;
-#endif
 }
 
 // 後ろから順に走査していく
@@ -209,12 +197,12 @@ int wasm_dump(WASMExecEnv *exec_env,
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_addr = get_global_addr_for_dump(global_data, (globals+i));
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_addr = get_global_addr_for_dump(global_data, (globals+i));
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
