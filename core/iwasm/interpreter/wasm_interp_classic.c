@@ -10,8 +10,7 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
-#include "../migration/wasm_dump.c"
-#include "../migration/wasm_restore.c"
+#include "../migration/wasm_migration.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -1162,7 +1161,6 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
 }
 
 static bool sig_flag = false;
-static bool restore_flag = false;
 static void (*native_handler)(void) = NULL;
 bool done_flag = false;
 void
@@ -1232,7 +1230,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
     signal(SIGINT, &wasm_interp_sigint);
 
-    if (restore_flag) {
+    if (get_restore_flag()) {
         // bool done_flag;
         int rc = wasm_restore(module, exec_env, cur_func, prev_frame,
                         memory, globals, global_data, global_addr,
