@@ -7,6 +7,9 @@
 void set_restore_flag(bool f);
 bool get_restore_flag();
 
+WASMInterpFrame*
+wasm_restore_frame(WASMExecEnv *exec_env);
+
 int wasm_restore(WASMModuleInstance *module,
             WASMExecEnv *exec_env,
             WASMFunctionInstance *cur_func,
