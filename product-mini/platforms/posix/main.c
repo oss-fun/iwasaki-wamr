@@ -546,6 +546,7 @@ main(int argc, char *argv[])
     uint8 *wasm_file_buf = NULL;
     uint32 wasm_file_size;
     uint32 stack_size = 64 * 1024;
+    bool restore_flag = false;
 #if WASM_ENABLE_LIBC_WASI != 0
     uint32 heap_size = 0;
 #else
@@ -824,7 +825,7 @@ main(int argc, char *argv[])
         else if (!strncmp(argv[0], "--restore", 9)) {
            if (argv[0][9] == '\0') 
                return print_help();
-           set_restore_flag();
+           restore_flag = true;
         }
         else if (!strncmp(argv[0], "--version", 9)) {
             uint32 major, minor, patch;
@@ -847,6 +848,7 @@ main(int argc, char *argv[])
     memset(&init_args, 0, sizeof(RuntimeInitArgs));
 
     init_args.running_mode = running_mode;
+    init_args.restore_flag = restore_flag;
 #if WASM_ENABLE_GLOBAL_HEAP_POOL != 0
     init_args.mem_alloc_type = Alloc_With_Pool;
     init_args.mem_alloc_option.pool.heap_buf = global_heap_buf;
