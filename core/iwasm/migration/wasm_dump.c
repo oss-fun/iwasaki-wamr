@@ -2,96 +2,38 @@
 #include <stdlib.h>
 
 #include "../interpreter/wasm_runtime.h"
-#include "wasm_migration.h"
 
-static Frame_Info *root_info = NULL, *tail_info = NULL;
-
-void
-wasm_dump_set_root_and_tail(Frame_Info *root, Frame_Info *tail)
-{
-    root_info = root;
-    tail_info = tail;
+int all_cell_num_of_dummy_frame = -1;
+void set_all_cell_num_of_dummy_frame(int all_cell_num) {
+    all_cell_num_of_dummy_frame = all_cell_num;
 }
 
-void
-wasm_dump_alloc_init_frame(uint32 all_cell_num)
+static inline uint8 *
+get_global_addr_for_dump(uint8 *global_data, WASMGlobalInstance *global)
 {
-    root_info->all_cell_num = all_cell_num;
+#if WASM_ENABLE_MULTI_MODULE == 0
+    return global_data + global->data_offset;
+#else
+    return global->import_global_inst
+               ? global->import_module_inst->global_data
+                     + global->import_global_inst->data_offset
+               : global_data + global->data_offset;
+#endif
 }
 
-void
-wasm_dump_alloc_frame(WASMInterpFrame *frame, WASMExecEnv *exec_env)
-{
-    Frame_Info *info;
-    info = malloc(sizeof(Frame_Info));
-    info->frame = frame;
-    info->all_cell_num = 0;
-    info->prev = tail_info;
-    info->next = NULL;
-
-    if (root_info == NULL) {
-        root_info = tail_info = info;
+// 後ろから順に走査していく
+// なので現状restoreの方と合ってない
+struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
+    if (frame == NULL) {
+        perror("frame is NULL");
+        return NULL;
     }
-    else {
-        tail_info->next = info;
-        tail_info = tail_info->next;
-    }
-}
+    return frame->prev_frame;
+} 
 
-void
-wasm_dump_free_frame(void)
-{
-    if (root_info == tail_info) {
-        free(root_info);
-        root_info = tail_info = NULL;
-    }
-    else {
-        tail_info = tail_info->prev;
-        free(tail_info->next);
-        tail_info->next = NULL;
-    }
-}
-
-void
-wasm_dump_frame(WASMExecEnv *exec_env)
-{
-    WASMModuleInstance *module_inst =
-        (WASMModuleInstance *)exec_env->module_inst;
-    Frame_Info *info;
-    WASMFunctionInstance *function;
-    uint32 func_idx;
-    FILE *fp;
-    int i;
-
-    if (!root_info) {
-        printf("dump failed\n");
-        exit(1);
-    }
-    fp = fopen("frame.img", "wb");
-    info = root_info;
-
-    while (info) {
-
-        if (info->frame->function == NULL) {
-            // 初期フレーム
-            func_idx = -1;
-            fwrite(&func_idx, sizeof(uint32), 1, fp);
-            fwrite(&info->all_cell_num, sizeof(uint32), 1, fp);
-        }
-        else {
-            func_idx = info->frame->function - module_inst->e->functions;
-            fwrite(&func_idx, sizeof(uint32), 1, fp);
-            printf("dump func_idx: %d\n", func_idx);
-
-            dump_WASMInterpFrame(info->frame, exec_env, fp);
-        }
-        info = info->next;
-    }
-    fclose(fp);
-}
 
 static void
-dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
+dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 {
     int i;
     WASMModuleInstance *module_inst = exec_env->module_inst;
@@ -200,6 +142,40 @@ dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
     }
 }
 
+void
+wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+{
+    WASMModuleInstance *module =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMFunctionInstance *function;
+
+    FILE *fp = fopen("frame.img", "wb");
+    if (fp == NULL) {
+        perror("failed to open frame.img");    
+        exit(1);
+    }
+
+    // frameを先頭から末尾まで走査する
+    while(frame = walk_frame(frame)) {
+        if (frame->function == NULL) {
+            // 初期フレーム
+            uint32 func_idx = -1;
+            fwrite(&func_idx, sizeof(uint32), 1, fp);
+            fwrite(&all_cell_num_of_dummy_frame, sizeof(uint32), 1, fp);
+        }
+        else {
+            uint32 func_idx = frame->function - module->e->functions;
+            fwrite(&func_idx, sizeof(uint32), 1, fp);
+
+            printf("dump func_idx: %d\n", func_idx);
+
+            dump_WASMInterpFrame(frame, exec_env, fp);
+        }
+    }
+
+    fclose(fp);
+}
+
 int wasm_dump(WASMExecEnv *exec_env,
          WASMModuleInstance *module,
          WASMMemoryInstance *memory,
@@ -207,7 +183,7 @@ int wasm_dump(WASMExecEnv *exec_env,
          uint8 *global_data,
          uint8 *global_addr,
          WASMFunctionInstance *cur_func,
-         WASMInterpFrame *frame,
+         struct WASMInterpFrame *frame,
          register uint8 *frame_ip,
          register uint32 *frame_sp,
          WASMBranchBlock *frame_csp,
@@ -233,12 +209,12 @@ int wasm_dump(WASMExecEnv *exec_env,
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_addr = get_global_addr(global_data, globals + i);
+                global_addr = get_global_addr_for_dump(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_addr = get_global_addr(global_data, globals + i);
+                global_addr = get_global_addr_for_dump(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
@@ -252,8 +228,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     // WASMGlobalInstance *globals = module->globals, *global;
     // uint8 opcode_IMPDEP = WASM_OP_IMPDEP;
     // WASMInterpFrame *frame = NULL;
-    SYNC_ALL_TO_FRAME();
-    wasm_dump_frame(exec_env);
+    wasm_dump_frame(exec_env, frame);
 
     uint32 p_offset;
     // register uint8 *frame_ip = &opcode_IMPDEP;
