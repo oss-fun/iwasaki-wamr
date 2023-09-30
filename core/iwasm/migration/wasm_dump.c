@@ -8,6 +8,19 @@ void set_all_cell_num_of_dummy_frame(int all_cell_num) {
     all_cell_num_of_dummy_frame = all_cell_num;
 }
 
+static inline uint8 *
+get_global_addr_for_dump(uint8 *global_data, WASMGlobalInstance *global)
+{
+#if WASM_ENABLE_MULTI_MODULE == 0
+    return global_data + global->data_offset;
+#else
+    return global->import_global_inst
+               ? global->import_module_inst->global_data
+                     + global->import_global_inst->data_offset
+               : global_data + global->data_offset;
+#endif
+}
+
 // 後ろから順に走査していく
 // なので現状restoreの方と合ってない
 struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
@@ -20,7 +33,7 @@ struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
 
 
 static void
-dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
+dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 {
     int i;
     WASMModuleInstance *module_inst = exec_env->module_inst;
@@ -130,7 +143,7 @@ dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 }
 
 void
-wasm_dump_frame(WASMExecEnv *exec_env, WASMInterpFrame *frame)
+wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 {
     WASMModuleInstance *module =
         (WASMModuleInstance *)exec_env->module_inst;
@@ -170,7 +183,7 @@ int wasm_dump(WASMExecEnv *exec_env,
          uint8 *global_data,
          uint8 *global_addr,
          WASMFunctionInstance *cur_func,
-         WASMInterpFrame *frame,
+         struct WASMInterpFrame *frame,
          register uint8 *frame_ip,
          register uint32 *frame_sp,
          WASMBranchBlock *frame_csp,
@@ -196,12 +209,12 @@ int wasm_dump(WASMExecEnv *exec_env,
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_addr = get_global_addr(global_data, globals + i);
+                global_addr = get_global_addr_for_dump(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_addr = get_global_addr(global_data, globals + i);
+                global_addr = get_global_addr_for_dump(global_data, (globals+i));
                 fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
