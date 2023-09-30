@@ -18,7 +18,7 @@ struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
         return NULL;
     }
     return frame->prev_frame;
-} 
+}
 
 
 static void

@@ -36,15 +36,18 @@ FILE* openImg(const char* img_dir, const char* file_path) {
     return fp;
 }
 
+// NOTE: もとのやつはprev_frameを引数に渡してそれを、新しく生成したframeのprev_frameにつけてたけど,
+//       これはframeを引数で渡して新しくprev_frameを生成し、渡されたframeのprev_frameにつける
+//       返すのはprev_frame
 static inline WASMInterpFrame *
-wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
+wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *frame)
 {
-    WASMInterpFrame *frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
+    WASMInterpFrame *prev_frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
 
     if (frame) {
         frame->prev_frame = prev_frame;
 #if WASM_ENABLE_PERF_PROFILING != 0
-        frame->time_started = os_time_get_boot_microsecond();
+        prev_frame->time_started = os_time_get_boot_microsecond();
 #endif
     }
     else {
@@ -52,7 +55,7 @@ wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame
                            "wasm operand stack overflow");
     }
 
-    return frame;
+    return prev_frame;
 }
 
 static void
