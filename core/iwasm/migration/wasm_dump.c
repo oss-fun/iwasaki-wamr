@@ -3,6 +3,7 @@
 
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
+#include "wasm_dump.h"
 
 int all_cell_num_of_dummy_frame = -1;
 void set_all_cell_num_of_dummy_frame(int all_cell_num) {

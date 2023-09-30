@@ -5,8 +5,17 @@
 #include "../common/wasm_memory.h"
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
-// #include "wasm_restore.h"
+#include "wasm_restore.h"
 
+static bool restore_flag;
+void set_restore_flag(bool f)
+{
+    restore_flag = f;
+}
+bool get_restore_flag()
+{
+    return restore_flag;
+}
 
 FILE* openImg(const char* img_dir, const char* file_path) {
     FILE *fp;

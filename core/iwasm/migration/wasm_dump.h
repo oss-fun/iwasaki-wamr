@@ -1,26 +1,17 @@
-#ifndef _WASM_CHECKPOINT_H
-#define _WASM_CHECKPOINT_H
+#ifndef _WASM_DUMP_H
+#define _WASM_DUMP_H
 
 #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
-void
-wasm_dump_set_root_and_tail(Frame_Info *root, Frame_Info *tail);
-
-void
-wasm_dump_alloc_init_frame(uint32 all_cell_num);
-
-void
-wasm_dump_frame(WASMExecEnv *exec_env);
-
-static void
-dump_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp);
-
 int wasm_dump(WASMExecEnv *exec_env,
-         WASMMemoryInstance *meomry,
+         WASMModuleInstance *module,
+         WASMMemoryInstance *memory,
          WASMGlobalInstance *globals,
+         uint8 *global_data,
+         uint8 *global_addr,
          WASMFunctionInstance *cur_func,
-         WASMInterpFrame *frame,
+         struct WASMInterpFrame *frame,
          register uint8 *frame_ip,
          register uint32 *frame_sp,
          WASMBranchBlock *frame_csp,

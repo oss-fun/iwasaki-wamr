@@ -35,7 +35,7 @@
 #include "../compilation/aot_llvm.h"
 #endif
 #include "../common/wasm_c_api_internal.h"
-#include "../migration/wasm_migration.h"
+#include "../migration/wasm_restore.h"
 #include "../../version.h"
 
 /**

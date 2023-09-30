@@ -10,7 +10,8 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
-#include "../migration/wasm_migration.h"
+#include "../migration/wasm_dump.h"
+#include "../migration/wasm_restore.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif

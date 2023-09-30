@@ -13,6 +13,7 @@
 #if WASM_ENABLE_THREAD_MGR != 0
 #include "../libraries/thread-mgr/thread_manager.h"
 #endif
+#include "../migration/wasm_migration.h"
 
 static void
 set_error_buf(char *error_buf, uint32 error_buf_size, const char *string)

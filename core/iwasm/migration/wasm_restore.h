@@ -4,12 +4,8 @@
 #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
-WASMInterpFrame *
-wasm_restore_frame(WASMExecEnv *exec_env, const char *dir);
-
-static void
-restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env,
-                        FILE *fp);
+void set_restore_flag(bool f);
+bool get_restore_flag();
 
 int wasm_restore(WASMModuleInstance *module,
             WASMExecEnv *exec_env,
