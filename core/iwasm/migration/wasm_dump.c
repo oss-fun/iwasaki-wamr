@@ -195,9 +195,6 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         else {
             uint32 func_idx = frame->function - module->e->functions;
             fwrite(&func_idx, sizeof(uint32), 1, fp);
-
-            printf("dump func_idx: %d\n", func_idx);
-
             dump_WASMInterpFrame(frame, exec_env, fp);
         }
     } while(rf = rf->next);

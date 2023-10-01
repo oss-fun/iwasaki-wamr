@@ -36,9 +36,6 @@ FILE* openImg(const char* img_dir, const char* file_path) {
     return fp;
 }
 
-// NOTE: もとのやつはprev_frameを引数に渡してそれを、新しく生成したframeのprev_frameにつけてたけど,
-//       これはframeを引数で渡して新しくprev_frameを生成し、渡されたframeのprev_frameにつける
-//       返すのはprev_frame
 static inline WASMInterpFrame *
 wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
 {
@@ -174,7 +171,6 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
     }
 }
 
-// TODO: dump時にframeを逆順にrestoreしたかもなので、よく確認する
 WASMInterpFrame*
 wasm_restore_frame(WASMExecEnv **_exec_env)
 {
@@ -203,18 +199,11 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
             fread(&all_cell_num, sizeof(uint32), 1, fp);
             frame_size = wasm_interp_interp_frame_size(all_cell_num);
             frame = prev_frame;
-            // frame = wasm_alloc_frame(exec_env, frame_size,
-            //                     (WASMInterpFrame *)prev_frame);
 
             // 初期フレームをrestore
             frame->function = NULL;
             frame->ip = NULL;
             frame->sp = prev_frame->lp + 0;
-
-            // NOTE: info使う必要ないはずだから一旦コメントアウト
-            //       多分もう一度dumpするときのためにinfoを作ってる気がする
-            // info->frame = prev_frame = frame;
-            // info->all_cell_num = all_cell_num;
         }
         else {
             // 関数からスタックサイズを計算し,ALLOC
@@ -243,7 +232,6 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     
     _exec_env = &exec_env;
 
-    // TODO: このframeがちゃんと末尾のframeになってるかチェック
     return frame;
 }
 
@@ -270,7 +258,6 @@ int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstan
         return -1;
     }
 
-    // NOTE: global_addr復元できてる？上書きされてない？
     for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
@@ -359,13 +346,6 @@ int wasm_restore_addrs(
 
     fread(done_flag, sizeof(bool), 1, fp);
 
-    // const char* debug_func_name = "wasm_restore_addrs";
-    // printf("debug_addr\n");
-    // debug_addr("frame_ip", debug_func_name, *frame_ip);
-    // debug_addr("frame_lp", debug_func_name, *frame_lp);
-    // debug_addr("frame_sp", debug_func_name, *frame_sp);
-    // debug_addr("frame_csp", debug_func_name, *frame_csp);
-
     fclose(fp);
     return 0;
 }
@@ -390,14 +370,6 @@ int wasm_restore(WASMModuleInstance **module,
             bool *done_flag) 
 {
     const char* img_dir = "";
-    // WASMInterpFrame *frame = NULL;
-    // wasm_restore_frame(exec_env, img_dir, frame);
-    // if (frame == NULL) {
-    //     perror("failed to wasm_restore_frame\n");
-    //     return -1;
-    // }
-    // assert(frame != NULL);
-
     // TODO: これはwasm_restoreから返せばいいと思う
 
     FILE* fp = openImg(img_dir, "interp.img");
@@ -419,13 +391,6 @@ int wasm_restore(WASMModuleInstance **module,
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, done_flag);
     printf("Success to restore addrs\n");
-
-    const char* debug_func_name = "wasm_restore";
-    debug_addr("frame_ip", debug_func_name, *frame_ip);
-    debug_addr("frame_lp", debug_func_name, *frame_lp);
-    debug_addr("frame_sp", debug_func_name, *frame_sp);
-    debug_addr("frame_csp", debug_func_name, *frame_csp);
-
     fclose(fp);
 
     return 0;
