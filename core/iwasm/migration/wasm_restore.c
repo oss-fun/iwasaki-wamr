@@ -40,14 +40,14 @@ FILE* openImg(const char* img_dir, const char* file_path) {
 //       これはframeを引数で渡して新しくprev_frameを生成し、渡されたframeのprev_frameにつける
 //       返すのはprev_frame
 static inline WASMInterpFrame *
-wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *frame)
+wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
 {
-    WASMInterpFrame *prev_frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
+    WASMInterpFrame *frame = wasm_exec_env_alloc_wasm_frame(exec_env, size);
 
     if (frame) {
         frame->prev_frame = prev_frame;
 #if WASM_ENABLE_PERF_PROFILING != 0
-        prev_frame->time_started = os_time_get_boot_microsecond();
+        frame->time_started = os_time_get_boot_microsecond();
 #endif
     }
     else {
@@ -55,7 +55,7 @@ wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *frame)
                            "wasm operand stack overflow");
     }
 
-    return prev_frame;
+    return frame;
 }
 
 static void
@@ -176,15 +176,15 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 
 // TODO: dump時にframeを逆順にrestoreしたかもなので、よく確認する
 WASMInterpFrame*
-wasm_restore_frame(WASMExecEnv *exec_env)
+wasm_restore_frame(WASMExecEnv **_exec_env)
 {
+    WASMExecEnv *exec_env = *_exec_env;
     WASMModuleInstance *module_inst =
         (WASMModuleInstance *)exec_env->module_inst;
-    WASMInterpFrame *prev_frame, *frame = wasm_exec_env_get_cur_frame(exec_env);
+    WASMInterpFrame *frame, *prev_frame = wasm_exec_env_get_cur_frame(exec_env);
     WASMFunctionInstance *function;
     uint32 func_idx, frame_size, all_cell_num;
     FILE *fp;
-    WASMInterpFrame *top_frame = frame;
 
     const char* img_dir = "";
     fp = openImg(img_dir, "frame.img");
@@ -202,15 +202,15 @@ wasm_restore_frame(WASMExecEnv *exec_env)
             // 初期フレームのスタックサイズをreadしてALLOC
             fread(&all_cell_num, sizeof(uint32), 1, fp);
             frame_size = wasm_interp_interp_frame_size(all_cell_num);
-            prev_frame = wasm_alloc_frame(exec_env, frame_size,
-                                (WASMInterpFrame *)frame);
+            frame = prev_frame;
+            // frame = wasm_alloc_frame(exec_env, frame_size,
+            //                     (WASMInterpFrame *)prev_frame);
 
             // 初期フレームをrestore
-            prev_frame->function = NULL;
-            prev_frame->ip = NULL;
-            prev_frame->sp = prev_frame->lp + 0;
+            frame->function = NULL;
+            frame->ip = NULL;
+            frame->sp = prev_frame->lp + 0;
 
-            frame = prev_frame;
             // NOTE: info使う必要ないはずだから一旦コメントアウト
             //       多分もう一度dumpするときのためにinfoを作ってる気がする
             // info->frame = prev_frame = frame;
@@ -219,39 +219,35 @@ wasm_restore_frame(WASMExecEnv *exec_env)
         else {
             // 関数からスタックサイズを計算し,ALLOC
             function = module_inst->e->functions + func_idx;
-            printf("restore func_idx: %d\n", func_idx);
-
             all_cell_num = (uint64)function->param_cell_num
                            + (uint64)function->local_cell_num
                            + (uint64)function->u.func->max_stack_cell_num
                            + ((uint64)function->u.func->max_block_num)
                                  * sizeof(WASMBranchBlock) / 4;
             frame_size = wasm_interp_interp_frame_size(all_cell_num);
-            prev_frame = wasm_alloc_frame(exec_env, frame_size,
-                                (WASMInterpFrame *)frame);
+            frame = wasm_alloc_frame(exec_env, frame_size,
+                                (WASMInterpFrame *)prev_frame);
 
             // フレームをrestore
-            prev_frame->function = function;
-            restore_WASMInterpFrame(prev_frame, exec_env, fp);
-
-            printf("prev_frame:%p\n", prev_frame);
-            frame = prev_frame;
-
-            // info->frame = prev_frame = frame;
+            frame->function = function;
+            restore_WASMInterpFrame(frame, exec_env, fp);
         }
+        prev_frame = frame;
     }
+    debug_wasm_interp_frame(frame, module_inst->e->functions);
+
+
     printf("Success to restore frame\n");
-    wasm_exec_env_set_cur_frame(exec_env, top_frame);
-    printf("Success to wasm_exec_env_set_cur_frame\n");
-    // wasm_dump_set_root_and_tail(root_info, tail_info);
+    wasm_exec_env_set_cur_frame(exec_env, frame);
     fclose(fp);
-    printf("Success to close fp\n");
+    
+    _exec_env = &exec_env;
 
     // TODO: このframeがちゃんと末尾のframeになってるかチェック
-    return top_frame;
+    return frame;
 }
 
-int wasm_restore_memory(WASMMemoryInstance *memory) {
+int wasm_restore_memory(WASMMemoryInstance **memory) {
     const char *file = "memory.img";
     FILE* fp = openImg("", file);
     if (fp == NULL) {
@@ -259,14 +255,14 @@ int wasm_restore_memory(WASMMemoryInstance *memory) {
         return -1;
     }
 
-    fread(memory->memory_data, sizeof(uint8),
-            memory->num_bytes_per_page * memory->cur_page_count, fp);
+    fread((*memory)->memory_data, sizeof(uint8),
+            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, fp);
 
     fclose(fp);
     return 0;
 }
 
-int wasm_restore_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data, uint8* global_addr) {
+int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstance *globals, uint8 **global_data, uint8 **global_addr) {
     const char *file = "global.img";
     FILE* fp = openImg("", file);
     if (fp == NULL) {
@@ -279,13 +275,13 @@ int wasm_restore_global(WASMModuleInstance *module, WASMGlobalInstance *globals,
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_addr = get_global_addr_for_migration(global_data, globals + i);
-                fread(global_addr, sizeof(uint32), 1, fp);
+                *global_addr = get_global_addr_for_migration(*global_data, globals + i);
+                fread(*global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_addr = get_global_addr_for_migration(global_data, globals + i);
-                fread(global_addr, sizeof(uint64), 1, fp);
+                *global_addr = get_global_addr_for_migration(*global_data, globals + i);
+                fread(*global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
                 perror("wasm_restore_global:type error:A\n");
@@ -297,18 +293,26 @@ int wasm_restore_global(WASMModuleInstance *module, WASMGlobalInstance *globals,
     return 0;
 }
 
+void debug_addr(const char* name, const char* func_name, int value) {
+    if (value == NULL) {
+        fprintf(stderr, "debug_addr: %s value is NULL\n", name);
+        return;
+    }
+    printf("%s in %s: %p\n", name, func_name, (int)value);
+}
+
 int wasm_restore_addrs(
-    WASMInterpFrame *frame,
-    WASMFunctionInstance *func,
-    WASMMemoryInstance *memory,
-    uint8 *frame_ip,
-    uint32 *frame_lp,
-    uint32 *frame_sp,
-    WASMBranchBlock *frame_csp,
-    uint8 *frame_ip_end,
-    uint8 *else_addr,
-    uint8 *end_addr,
-    uint8 *maddr,
+    const WASMInterpFrame *frame,
+    const WASMFunctionInstance *func,
+    const WASMMemoryInstance *memory,
+    uint8 **frame_ip,
+    uint32 **frame_lp,
+    uint32 **frame_sp,
+    WASMBranchBlock **frame_csp,
+    uint8 **frame_ip_end,
+    uint8 **else_addr,
+    uint8 **end_addr,
+    uint8 **maddr,
     bool *done_flag) 
 {
     const char *file = "addr.img";
@@ -321,54 +325,68 @@ int wasm_restore_addrs(
     uint32 p_offset;
     // register uint8 *frame_ip = &opcode_IMPDEP;
     fread(&p_offset, sizeof(uint32), 1, fp);
-    frame_ip = wasm_get_func_code(frame->function) + p_offset;
+    if (frame->function == NULL) {
+        perror("Error:wasm_restore_addrs:frame_function is null\n");
+    }
+    if (p_offset == NULL) {
+        perror("Error:wasm_restore_addrs:p_offset is null\n");
+    }
+    *frame_ip = wasm_get_func_code(frame->function) + p_offset;
 
     // register uint32 *frame_lp = NULL;
-    frame_lp = frame->lp;
+    *frame_lp = frame->lp;
+
     // register uint32 *frame_sp = NULL;
     fread(&p_offset, sizeof(uint32), 1, fp);
-    frame_sp = frame->sp_bottom + p_offset;
+    *frame_sp = frame->sp_bottom + p_offset;
 
     // WASMBranchBlock *frame_csp = NULL;
     fread(&p_offset, sizeof(uint32), 1, fp);
-    frame_csp = frame->csp_bottom + p_offset;
+    *frame_csp = frame->csp_bottom + p_offset;
 
     // uint8 *frame_ip_end = frame_ip + 1;
-    frame_ip_end = wasm_get_func_code_end(frame->function);
+    *frame_ip_end = wasm_get_func_code_end(frame->function);
 
     // uint8 *else_addr, *end_addr, *maddr;
     fread(&p_offset, sizeof(uint32), 1, fp);
-    else_addr = wasm_get_func_code(func) + p_offset;
+    *else_addr = wasm_get_func_code(func) + p_offset;
 
     fread(&p_offset, sizeof(uint32), 1, fp);
-    end_addr = wasm_get_func_code(func) + p_offset;
+    *end_addr = wasm_get_func_code(func) + p_offset;
 
     fread(&p_offset, sizeof(uint32), 1, fp);
-    maddr = memory->memory_data + p_offset;
+    *maddr = memory->memory_data + p_offset;
 
     fread(done_flag, sizeof(bool), 1, fp);
+
+    // const char* debug_func_name = "wasm_restore_addrs";
+    // printf("debug_addr\n");
+    // debug_addr("frame_ip", debug_func_name, *frame_ip);
+    // debug_addr("frame_lp", debug_func_name, *frame_lp);
+    // debug_addr("frame_sp", debug_func_name, *frame_sp);
+    // debug_addr("frame_csp", debug_func_name, *frame_csp);
 
     fclose(fp);
     return 0;
 }
 
-int wasm_restore(WASMModuleInstance *module,
-            WASMExecEnv *exec_env,
-            WASMFunctionInstance *cur_func,
-            WASMInterpFrame *prev_frame,
-            WASMMemoryInstance *memory,
-            WASMGlobalInstance *globals,
-            uint8 *global_data,
-            uint8 *global_addr,
-            WASMInterpFrame *frame,
-            register uint8 *frame_ip,
-            register uint32 *frame_lp,
-            register uint32 *frame_sp,
-            WASMBranchBlock *frame_csp,
-            uint8 *frame_ip_end,
-            uint8 *else_addr,
-            uint8 *end_addr,
-            uint8 *maddr,
+int wasm_restore(WASMModuleInstance **module,
+            WASMExecEnv **exec_env,
+            WASMFunctionInstance **cur_func,
+            WASMInterpFrame **prev_frame,
+            WASMMemoryInstance **memory,
+            WASMGlobalInstance **globals,
+            uint8 **global_data,
+            uint8 **global_addr,
+            WASMInterpFrame **frame,
+            uint8 **frame_ip,
+            uint32 **frame_lp,
+            uint32 **frame_sp,
+            WASMBranchBlock **frame_csp,
+            uint8 **frame_ip_end,
+            uint8 **else_addr,
+            uint8 **end_addr,
+            uint8 **maddr,
             bool *done_flag) 
 {
     const char* img_dir = "";
@@ -393,17 +411,22 @@ int wasm_restore(WASMModuleInstance *module,
     printf("Success to restore linear memory\n");
 
     // restore globals
-    wasm_restore_global(module, globals, global_data, global_addr);
+    wasm_restore_global(*module, *globals, global_data, global_addr);
     printf("Success to restore globals\n");
 
     // restore addrs
-    wasm_restore_addrs(frame, cur_func, memory, 
+    wasm_restore_addrs(*frame, *cur_func, *memory, 
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, done_flag);
     printf("Success to restore addrs\n");
 
+    const char* debug_func_name = "wasm_restore";
+    debug_addr("frame_ip", debug_func_name, *frame_ip);
+    debug_addr("frame_lp", debug_func_name, *frame_lp);
+    debug_addr("frame_sp", debug_func_name, *frame_sp);
+    debug_addr("frame_csp", debug_func_name, *frame_csp);
+
     fclose(fp);
-    printf("Success to close fp\n");
 
     return 0;
 }

@@ -20,10 +20,21 @@ struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
     return frame->prev_frame;
 }
 
+int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (stream == NULL) {
+        return -1;
+    }
+    return fwrite(ptr, size, nmemb, stream);
+}
+
 
 static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 {
+    if (fp == NULL) {
+        perror("dump_WASMIntperFrame:fp is null\n");
+        return;
+    }
     int i;
     WASMModuleInstance *module_inst = exec_env->module_inst;
 
@@ -131,6 +142,36 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
     }
 }
 
+// WASMIntrerpFrameを逆から走査できるようにするもの
+typedef struct RevFrame {
+    WASMInterpFrame *frame;
+    struct RevFrame *next;
+} RevFrame;
+
+RevFrame *init_rev_frame(WASMInterpFrame *top_frame) {
+    WASMInterpFrame *frame = top_frame;
+    RevFrame *rf, *next_rf;
+
+    // top_rev_frame
+    // TODO: freeする必要ある
+    next_rf = (RevFrame*)malloc(sizeof(RevFrame));
+    next_rf->frame = top_frame;
+    next_rf->next = NULL;
+
+    while(frame = frame->prev_frame) {
+        rf = (RevFrame*)malloc(sizeof(RevFrame));
+        rf->frame = frame;
+        rf->next = next_rf;
+        next_rf = rf;
+    }
+    
+    return rf;
+} 
+
+RevFrame *walk_rev_frame(RevFrame *rf) {
+    return rf->next;
+}
+
 int
 wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 {
@@ -146,8 +187,15 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         return -1;
     }
 
+    RevFrame *rf = init_rev_frame(frame);
     // frameを先頭から末尾まで走査する
-    while(frame = walk_frame(frame)) {
+    do {
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
         if (frame->function == NULL) {
             // 初期フレーム
             uint32 func_idx = -1;
@@ -162,7 +210,7 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
             dump_WASMInterpFrame(frame, exec_env, fp);
         }
-    }
+    } while(rf = rf->next);
 
     fclose(fp);
     return 0;
@@ -241,26 +289,26 @@ int wasm_dump_addrs(
     uint32 p_offset;
     // register uint8 *frame_ip = &opcode_IMPDEP;
     p_offset = frame_ip - wasm_get_func_code(func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
     // register uint32 *frame_lp = NULL;
     // register uint32 *frame_sp = NULL;
     p_offset = frame_sp - frame->sp_bottom;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     // WASMBranchBlock *frame_csp = NULL;
     p_offset = frame_csp - frame->csp_bottom;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     p_offset = else_addr - wasm_get_func_code(func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     p_offset = end_addr - wasm_get_func_code(func);
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     p_offset = maddr - memory->memory_data;
-    fwrite(&p_offset, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
-    fwrite(&done_flag, sizeof(done_flag), 1, fp);
+    dump_value(&done_flag, sizeof(done_flag), 1, fp);
 
     fclose(fp);
     return 0;
