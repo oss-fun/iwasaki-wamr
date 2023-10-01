@@ -1115,6 +1115,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
             wasm_cluster_thread_waiting_run(exec_env);                    \
         }                                                                 \
         os_mutex_unlock(&exec_env->wait_lock);                            \
+        CHECK_DUMP()                                                      \
         goto *handle_table[*frame_ip++];                                  \
     } while (0)
 #else
@@ -1141,9 +1142,12 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
         wasm_cluster_thread_waiting_run(exec_env);                 \
     }                                                              \
     os_mutex_unlock(&exec_env->wait_lock);                         \
+    CHECK_DUMP()                                                   \
     continue
 #else
-#define HANDLE_OP_END() continue
+#define HANDLE_OP_END()                                            \
+    CHECK_DUMP()                                                   \
+    continue
 #endif
 
 #endif /* end of WASM_ENABLE_LABELS_AS_VALUES */
