@@ -169,6 +169,8 @@ typedef struct RuntimeInitArgs {
     uint32_t llvm_jit_size_level;
     /* Segue optimization flags for LLVM JIT */
     uint32_t segue_flags;
+    /* Restore from interp.img and frame.img */
+    bool restore_flag;
 } RuntimeInitArgs;
 
 #ifndef WASM_VALKIND_T_DEFINED

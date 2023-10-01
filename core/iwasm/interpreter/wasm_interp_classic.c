@@ -10,8 +10,8 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
-#include "../migration/wasm_dump.c"
-#include "../migration/wasm_restore.c"
+#include "../migration/wasm_dump.h"
+#include "../migration/wasm_restore.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -1162,7 +1162,6 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
 }
 
 static bool sig_flag = false;
-static bool restore_flag = false;
 static void (*native_handler)(void) = NULL;
 bool done_flag = false;
 void
@@ -1190,9 +1189,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     WASMInterpFrame *frame = NULL;
     /* Points to this special opcode so as to jump to the
      * call_method_from_entry.  */
-    register uint8 *frame_ip = &opcode_IMPDEP; /* cache of frame->ip */
-    register uint32 *frame_lp = NULL;          /* cache of frame->lp */
-    register uint32 *frame_sp = NULL;          /* cache of frame->sp */
+    uint8 *frame_ip = &opcode_IMPDEP; /* cache of frame->ip */
+    uint32 *frame_lp = NULL;          /* cache of frame->lp */
+    uint32 *frame_sp = NULL;          /* cache of frame->sp */
     WASMBranchBlock *frame_csp = NULL;
     BlockAddr *cache_items;
     uint8 *frame_ip_end = frame_ip + 1;
@@ -1232,24 +1231,57 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 
     signal(SIGINT, &wasm_interp_sigint);
 
-    // if (restore_flag) {
-    //     // bool done_flag;
-    //     int rc = wasm_restore(module, exec_env, cur_func, prev_frame,
-    //                     memory, globals, global_data, global_addr,
-    //                     frame, frame_ip, frame_lp, frame_sp, frame_csp,
-    //                     frame_ip_end, else_addr, end_addr, maddr, &done_flag);
-    //     if (rc < 0) {
-    //         // error
-    //         perror("failed to restore\n");
-    //         exit(1);
-    //     }
-    //     UPDATE_ALL_FROM_FRAME();
-    //     if (!done_flag) {
-    //         // TODO: I haven't understood the think of this line developer.
-    //         goto handle_op_call;
-    //     }
-    //     FETCH_OPCODE_AND_DISPATCH();
-    // }
+    if (get_restore_flag()) {
+        // bool done_flag;
+        int rc;
+        frame = wasm_restore_frame(&exec_env);
+        if (frame == NULL) {
+            perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
+            return;
+        }
+        // debug_wasm_interp_frame(frame, module->e->functions);
+
+        cur_func = frame->function;
+        prev_frame = frame->prev_frame;
+        if (cur_func == NULL) {
+            perror("Error:wasm_interp_func_bytecode:cur_func is null\n");
+            return;
+        }
+        if (prev_frame == NULL) {
+            perror("Error:wasm_interp_func_bytecode:prev_frame is null\n");
+            return;
+        }
+
+        rc = wasm_restore(&module, &exec_env, &cur_func, &prev_frame,
+                        &memory, &globals, &global_data, &global_addr,
+                        &frame, &frame_ip, &frame_lp, &frame_sp, &frame_csp,
+                        &frame_ip_end, &else_addr, &end_addr, &maddr, &done_flag);
+        if (rc < 0) {
+            // error
+            perror("failed to restore\n");
+            return;
+        }
+
+        UPDATE_ALL_FROM_FRAME();
+        // if (!done_flag) {
+        //     // TODO: I haven't understood the think of this line developer.
+        //     printf("goto hanele_op_call\n");
+        //     goto handle_op_call;
+        // }
+        // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
+        if (0) {
+            SYNC_ALL_TO_FRAME();
+            int rc = wasm_dump(exec_env, module, memory, 
+                globals, global_data, global_addr, cur_func,
+                frame, frame_ip, frame_sp, frame_csp,
+                frame_ip_end, else_addr, end_addr, maddr, done_flag);
+            if (rc < 0) {
+                perror("failed to dump\n");
+                exit(1);
+            }
+        }
+        FETCH_OPCODE_AND_DISPATCH();
+    }
 
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0

@@ -109,6 +109,7 @@ print_help()
 #if WASM_ENABLE_STATIC_PGO != 0
     printf("  --gen-prof-file=<path>   Generate LLVM PGO (Profile-Guided Optimization) profile file\n");
 #endif
+    printf("  --restore                Restore from frame.img and interp.img\n");
     printf("  --version                Show version information\n");
     return 1;
 }
@@ -545,6 +546,7 @@ main(int argc, char *argv[])
     uint8 *wasm_file_buf = NULL;
     uint32 wasm_file_size;
     uint32 stack_size = 64 * 1024;
+    bool restore_flag = false;
 #if WASM_ENABLE_LIBC_WASI != 0
     uint32 heap_size = 0;
 #else
@@ -820,6 +822,9 @@ main(int argc, char *argv[])
             gen_prof_file = argv[0] + 16;
         }
 #endif
+        else if (!strncmp(argv[0], "--restore", 9)) {
+           restore_flag = true;
+        }
         else if (!strncmp(argv[0], "--version", 9)) {
             uint32 major, minor, patch;
             wasm_runtime_get_version(&major, &minor, &patch);
@@ -841,6 +846,7 @@ main(int argc, char *argv[])
     memset(&init_args, 0, sizeof(RuntimeInitArgs));
 
     init_args.running_mode = running_mode;
+    init_args.restore_flag = restore_flag;
 #if WASM_ENABLE_GLOBAL_HEAP_POOL != 0
     init_args.mem_alloc_type = Alloc_With_Pool;
     init_args.mem_alloc_option.pool.heap_buf = global_heap_buf;
