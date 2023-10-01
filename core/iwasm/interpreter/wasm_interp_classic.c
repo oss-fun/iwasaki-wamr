@@ -1237,7 +1237,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         frame = wasm_restore_frame(&exec_env);
         if (frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
-            exit(1);
+            return;
         }
         // debug_wasm_interp_frame(frame, module->e->functions);
 
@@ -1245,11 +1245,11 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         prev_frame = frame->prev_frame;
         if (cur_func == NULL) {
             perror("Error:wasm_interp_func_bytecode:cur_func is null\n");
-            exit(1);
+            return;
         }
         if (prev_frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:prev_frame is null\n");
-            exit(1);
+            return;
         }
 
         rc = wasm_restore(&module, &exec_env, &cur_func, &prev_frame,
@@ -1259,24 +1259,16 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         if (rc < 0) {
             // error
             perror("failed to restore\n");
-            exit(1);
+            return;
         }
 
-        // frameがNULLだった
-        if (frame == NULL) {
-            perror("frame is NULL\n");
-            exit(1);
-        }
-
-        // NOTE: ここで壊れてそう
-        printf("UPDDATE_ALL_FROM_FRAME\n");
         UPDATE_ALL_FROM_FRAME();
-        printf("End UPDDATE_ALL_FROM_FRAME\n");
         // if (!done_flag) {
         //     // TODO: I haven't understood the think of this line developer.
         //     printf("goto hanele_op_call\n");
         //     goto handle_op_call;
         // }
+        // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
         if (0) {
             SYNC_ALL_TO_FRAME();
             int rc = wasm_dump(exec_env, module, memory, 
@@ -1287,9 +1279,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
                 perror("failed to dump\n");
                 exit(1);
             }
-            // exit(0);     
         }
-        printf("FETCH_OPCODE_AND_DISPATCH\n");
         FETCH_OPCODE_AND_DISPATCH();
     }
 
