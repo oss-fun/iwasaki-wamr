@@ -10,16 +10,6 @@ void set_all_cell_num_of_dummy_frame(int all_cell_num) {
     all_cell_num_of_dummy_frame = all_cell_num;
 }
 
-// 後ろから順に走査していく
-// なので現状restoreの方と合ってない
-struct WASMInterpFrame* walk_frame(struct WASMInterpFrame *frame) {
-    if (frame == NULL) {
-        perror("frame is NULL");
-        return NULL;
-    }
-    return frame->prev_frame;
-}
-
 int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     if (stream == NULL) {
         return -1;
@@ -188,7 +178,7 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     }
 
     RevFrame *rf = init_rev_frame(frame);
-    // frameを先頭から末尾まで走査する
+    // frameをbottomからtopまで走査する
     do {
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
@@ -332,13 +322,7 @@ int wasm_dump(WASMExecEnv *exec_env,
          bool done_flag) 
 {
     int rc;
-    FILE *fp;
-    fp = fopen("interp.img", "wb");
-    if (fp == NULL) {
-        perror("failed to open interp.img\n");
-        return -1;
-    }
-    
+
     // dump linear memory
     rc = wasm_dump_memory(memory);
     if (rc < 0) {
@@ -368,7 +352,6 @@ int wasm_dump(WASMExecEnv *exec_env,
         return rc;
     }
     printf("Success to dump addrs\n");
-    fclose(fp);
 
     return 0;
 }
