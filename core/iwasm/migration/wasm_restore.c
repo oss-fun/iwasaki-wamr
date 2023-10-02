@@ -29,6 +29,7 @@ FILE* openImg(const char* img_dir, const char* file_path) {
     dir = strcat(dir, file_path);
     fp = fopen(dir, "rb");
     if (fp == NULL) {
+        printf("file is %s\n", dir);
         perror("failed to openImg\n");
         return NULL;
     }
