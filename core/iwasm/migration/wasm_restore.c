@@ -29,6 +29,7 @@ FILE* openImg(const char* img_dir, const char* file_path) {
     dir = strcat(dir, file_path);
     fp = fopen(dir, "rb");
     if (fp == NULL) {
+        printf("file is %s\n", dir);
         perror("failed to openImg\n");
         return NULL;
     }
@@ -372,12 +373,6 @@ int wasm_restore(WASMModuleInstance **module,
     const char* img_dir = "";
     // TODO: これはwasm_restoreから返せばいいと思う
 
-    FILE* fp = openImg(img_dir, "interp.img");
-    if (fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
-
     // restore memory
     wasm_restore_memory(memory);
     printf("Success to restore linear memory\n");
@@ -391,7 +386,6 @@ int wasm_restore(WASMModuleInstance **module,
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, done_flag);
     printf("Success to restore addrs\n");
-    fclose(fp);
 
     return 0;
 }
