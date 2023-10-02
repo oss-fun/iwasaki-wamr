@@ -266,7 +266,6 @@ typedef enum WASMOpcode {
     EXT_OP_BLOCK = 0xd3,          /* block with blocktype */
     EXT_OP_LOOP = 0xd4,           /* loop with blocktype */
     EXT_OP_IF = 0xd5,             /* if with blocktype */
-    EXT_OP_BR_TABLE_CACHE = 0xd6, /* br_table from cache */
 
 #if WASM_ENABLE_DEBUG_INTERP != 0
     DEBUG_OP_BREAK = 0xd7, /* debug break point */
@@ -904,7 +903,6 @@ typedef enum WASMAtomicEXTOpcode {
         HANDLE_OPCODE(EXT_OP_BLOCK),                 /* 0xd3 */ \
         HANDLE_OPCODE(EXT_OP_LOOP),                  /* 0xd4 */ \
         HANDLE_OPCODE(EXT_OP_IF),                    /* 0xd5 */ \
-        HANDLE_OPCODE(EXT_OP_BR_TABLE_CACHE),        /* 0xd6 */ \
         SET_GOTO_TABLE_ELEM(WASM_OP_MISC_PREFIX),    /* 0xfc */ \
         SET_GOTO_TABLE_ELEM(WASM_OP_ATOMIC_PREFIX),  /* 0xfe */ \
         DEF_DEBUG_BREAK_HANDLE()                                \
