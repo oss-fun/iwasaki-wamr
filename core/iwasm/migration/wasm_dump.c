@@ -5,6 +5,7 @@
 #include "wasm_migration.h"
 #include "wasm_dump.h"
 
+/* common_functions */
 int all_cell_num_of_dummy_frame = -1;
 void set_all_cell_num_of_dummy_frame(int all_cell_num) {
     all_cell_num_of_dummy_frame = all_cell_num;
@@ -17,7 +18,141 @@ int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return fwrite(ptr, size, nmemb, stream);
 }
 
+/* wasm_dump for wasmedge */
+int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
+    FILE *fp;
+    /* data */
+    char *file = "memory_data_for_wasmedge.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
 
+    // WASMMemoryInstance *memory = module->default_memory;
+    fwrite(memory->memory_data, sizeof(uint8),
+           memory->num_bytes_per_page * memory->cur_page_count, fp);
+
+    fclose(fp);
+    
+    /* page_count */
+    file = "memory_page_count_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+    fprintf(fp, "%d", memory->cur_page_count);
+    
+    fclose(fp);
+    
+    return 0;
+}
+
+
+int wasm_dump_global_for_wasmedge(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
+    FILE *fp;
+    const char *file = "global_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    // WASMMemoryInstance *memory = module->default_memory;
+    uint8 *global_addr;
+    uint32 val32;
+    uint64 val64;
+    for (int i = 0; i < module->e->global_count; i++) {
+        switch (globals[i].type) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
+                val32 = *(uint32*)global_addr;
+                fprintf(fp, "%d\n", val32);
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                global_addr = get_global_addr_for_migration(global_data, (globals+i));
+                val64 = *(uint64*)global_addr;
+                fprintf(fp, "%ld\n", val64);
+                break;
+            default:
+                printf("type error:B\n");
+                break;
+        }
+    }
+
+    fclose(fp);
+    return 0;
+}
+
+int wasm_dump_program_counter_for_wasmedge (
+    WASMModuleInstance *module,
+    WASMFunctionInstance *func, 
+    uint8 *frame_ip
+) {
+    FILE *fp;
+    char *file = "iter_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+    
+    // dump func_idx
+    uint32 func_idx = func - module->e->functions;
+    fprintf(fp, "%d\n", func_idx);
+
+    // dump ip_offset
+    uint32 ip_offset = frame_ip - wasm_get_func_code(func);
+    fprintf(fp, "%d\n", ip_offset);
+
+    fclose(fp);
+    return 0;
+}
+
+
+int wasm_dump_for_wasmedge(
+    WASMExecEnv *exec_env,
+    WASMModuleInstance *module,
+    WASMMemoryInstance *memory,
+    WASMGlobalInstance *globals,
+    uint8 *global_data,
+    uint8 *global_addr,
+    WASMFunctionInstance *cur_func,
+    struct WASMInterpFrame *frame,
+    register uint8 *frame_ip,
+    register uint32 *frame_sp,
+    WASMBranchBlock *frame_csp,
+    uint8 *frame_ip_end,
+    uint8 *else_addr,
+    uint8 *end_addr,
+    uint8 *maddr,
+    bool done_flag) 
+{
+    int rc;  
+    rc = wasm_dump_memory_for_wasmedge(memory);
+    if (rc < 0) {
+        return rc;
+    }
+    LOG_DEBUG("Success to dump linear memory for wasmedge\n");
+
+    rc = wasm_dump_global_for_wasmedge(module, globals, global_data);
+    if (rc < 0) {
+        return rc;
+    }
+    LOG_DEBUG("Success to dump globals for wasmedge\n");
+    
+    rc = wasm_dump_program_counter_for_wasmedge(exec_env->module_inst, cur_func, frame_ip);
+    if (rc < 0) {
+        return rc;
+    }
+    LOG_DEBUG("Success to dump program counter for wasmedge\n");
+    
+}
+
+/* wasm_dump for webassembly micro runtime */
 static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 {
@@ -319,27 +454,37 @@ int wasm_dump(WASMExecEnv *exec_env,
          bool done_flag) 
 {
     int rc;
+    rc = wasm_dump_for_wasmedge(
+        exec_env, module, memory,
+        globals, global_data, global_addr,
+        cur_func, frame, frame_ip, frame_sp, frame_csp,
+        frame_ip_end, else_addr, end_addr, maddr, done_flag
+    );
+    if (rc < 0) {
+        return rc;
+    }
+    LOG_DEBUG("Success to dump for wasmedge\n");
 
     // dump linear memory
     rc = wasm_dump_memory(memory);
     if (rc < 0) {
         return rc;
     }
-    printf("Success to dump linear memory\n");
+    LOG_DEBUG("Success to dump linear memory\n");
 
     // dump globals
     rc = wasm_dump_global(module, globals, global_data);
     if (rc < 0) {
         return rc;
     }
-    printf("Success to dump globals\n");
-    
+    LOG_DEBUG("Success to dump globals\n");
+
     // dump frame
     rc = wasm_dump_frame(exec_env, frame);
     if (rc < 0) {
         return rc;
     }
-    printf("Success to dump frame\n");
+    LOG_DEBUG("Success to dump frame\n");
 
     // dump addrs
     rc = wasm_dump_addrs(frame, cur_func, memory, 
@@ -348,7 +493,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     if (rc < 0) {
         return rc;
     }
-    printf("Success to dump addrs\n");
+    LOG_DEBUG("Success to dump addrs\n");
 
     return 0;
 }

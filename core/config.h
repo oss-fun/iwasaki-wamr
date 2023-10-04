@@ -53,7 +53,7 @@
 #endif
 
 #ifndef BH_DEBUG
-#define BH_DEBUG 0
+#define BH_DEBUG 1
 #endif
 
 #define MEM_ALLOCATOR_EMS 0
