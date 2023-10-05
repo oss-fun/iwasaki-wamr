@@ -18,6 +18,36 @@ int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return fwrite(ptr, size, nmemb, stream);
 }
 
+// WASMIntrerpFrameを逆から走査できるようにするもの
+typedef struct RevFrame {
+    WASMInterpFrame *frame;
+    struct RevFrame *next;
+} RevFrame;
+
+RevFrame *init_rev_frame(WASMInterpFrame *top_frame) {
+    WASMInterpFrame *frame = top_frame;
+    RevFrame *rf, *next_rf;
+
+    // top_rev_frame
+    // TODO: freeする必要ある
+    next_rf = (RevFrame*)malloc(sizeof(RevFrame));
+    next_rf->frame = top_frame;
+    next_rf->next = NULL;
+
+    while(frame = frame->prev_frame) {
+        rf = (RevFrame*)malloc(sizeof(RevFrame));
+        rf->frame = frame;
+        rf->next = next_rf;
+        next_rf = rf;
+    }
+    
+    return rf;
+} 
+
+RevFrame *walk_rev_frame(RevFrame *rf) {
+    return rf->next;
+}
+
 /* wasm_dump for wasmedge */
 int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
     FILE *fp;
@@ -112,6 +142,82 @@ int wasm_dump_program_counter_for_wasmedge (
     return 0;
 }
 
+int wasm_dump_stack_for_wasmedge(WASMInterpFrame *frame) {
+    FILE *fp;
+    char *file = "stack_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+    
+    uint32 tsp_num = frame->tsp - frame->tsp_bottom;
+    
+    uint32 *cur_sp, *cur_tsp;
+    cur_sp = frame->sp_bottom;
+    cur_tsp = frame->tsp_bottom;
+    for (uint32 i = 0; i < tsp_num; i++) {
+        uint32 type = *(cur_tsp+i);
+        // sp[i]: 32bit型
+        if (type == 0) {
+            fprintf(fp, "%d\n", *(uint32*)(cur_sp));
+            cur_sp++;
+        }
+        // sp[i]: 64bit型
+        else if (type == 1) {
+            fprintf(fp, "%ld\n", *(uint64*)(cur_sp));
+            cur_sp += 2;
+        }
+    }
+    bh_assert(cur_sp == frame->sp);
+    bh_assert(cur_tsp == frame->tsp);
+
+    fclose(fp);
+    return 0;
+}
+
+int
+wasm_dump_frame_for_wasmedge(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+{
+    WASMModuleInstance *module =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMFunctionInstance *function;
+
+    FILE *fp;
+    int rc;
+    char *file = "stack_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    RevFrame *rf = init_rev_frame(frame);
+    // frameをbottomからtopまで走査する
+    do {
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
+        if (frame->function == NULL) {
+            // 初期フレーム
+            continue;
+        }
+        else {
+            rc = wasm_dump_stack_for_wasmedge(frame, exec_env, fp);
+            if (rc < 0) {
+                LOG_ERROR("failed to wasm_dump_stack_for_wasmedge");
+                return rc;
+            }
+        }
+    } while(rf = rf->next);
+
+    fclose(fp);
+    return 0;
+}
+
 
 int wasm_dump_for_wasmedge(
     WASMExecEnv *exec_env,
@@ -145,6 +251,12 @@ int wasm_dump_for_wasmedge(
     LOG_DEBUG("Success to dump globals for wasmedge\n");
     
     rc = wasm_dump_program_counter_for_wasmedge(exec_env->module_inst, cur_func, frame_ip);
+    if (rc < 0) {
+        return rc;
+    }
+    LOG_DEBUG("Success to dump program counter for wasmedge\n");
+
+    rc = wasm_dump_frame_for_wasmedge(exec_env, frame);
     if (rc < 0) {
         return rc;
     }
@@ -267,35 +379,6 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
     }
 }
 
-// WASMIntrerpFrameを逆から走査できるようにするもの
-typedef struct RevFrame {
-    WASMInterpFrame *frame;
-    struct RevFrame *next;
-} RevFrame;
-
-RevFrame *init_rev_frame(WASMInterpFrame *top_frame) {
-    WASMInterpFrame *frame = top_frame;
-    RevFrame *rf, *next_rf;
-
-    // top_rev_frame
-    // TODO: freeする必要ある
-    next_rf = (RevFrame*)malloc(sizeof(RevFrame));
-    next_rf->frame = top_frame;
-    next_rf->next = NULL;
-
-    while(frame = frame->prev_frame) {
-        rf = (RevFrame*)malloc(sizeof(RevFrame));
-        rf->frame = frame;
-        rf->next = next_rf;
-        next_rf = rf;
-    }
-    
-    return rf;
-} 
-
-RevFrame *walk_rev_frame(RevFrame *rf) {
-    return rf->next;
-}
 
 int
 wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)

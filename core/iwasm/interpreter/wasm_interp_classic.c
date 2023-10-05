@@ -321,23 +321,27 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 #define PUSH_I32(value)                        \
     do {                                       \
         *(int32 *)frame_sp++ = (int32)(value); \
+        *(int32 *)frame_tsp++ = (int32)(0);    \
     } while (0)
 
 #define PUSH_F32(value)                            \
     do {                                           \
         *(float32 *)frame_sp++ = (float32)(value); \
+        *(int32 *)frame_tsp++ = (int32)(0);    \
     } while (0)
 
 #define PUSH_I64(value)                   \
     do {                                  \
         PUT_I64_TO_ADDR(frame_sp, value); \
         frame_sp += 2;                    \
+        *(int32 *)frame_tsp++ = (int32)(1);\
     } while (0)
 
 #define PUSH_F64(value)                   \
     do {                                  \
         PUT_F64_TO_ADDR(frame_sp, value); \
         frame_sp += 2;                    \
+        *(int32 *)frame_tsp++ = (int32)(1);\
     } while (0)
 
 #define PUSH_CSP(_label_type, param_cell_num, cell_num, _target_addr) \
@@ -351,13 +355,13 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_csp++;                                                  \
     } while (0)
 
-#define POP_I32() (--frame_sp, *(int32 *)frame_sp)
+#define POP_I32() (--frame_sp, --frame_tsp, *(int32 *)frame_sp)
 
-#define POP_F32() (--frame_sp, *(float32 *)frame_sp)
+#define POP_F32() (--frame_sp, --frame_tsp, *(float32 *)frame_sp)
 
-#define POP_I64() (frame_sp -= 2, GET_I64_FROM_ADDR(frame_sp))
+#define POP_I64() (frame_sp -= 2, --frame_tsp, GET_I64_FROM_ADDR(frame_sp))
 
-#define POP_F64() (frame_sp -= 2, GET_F64_FROM_ADDR(frame_sp))
+#define POP_F64() (frame_sp -= 2, --frame_tsp, GET_F64_FROM_ADDR(frame_sp))
 
 #define POP_CSP_CHECK_OVERFLOW(n)                      \
     do {                                               \
@@ -583,7 +587,7 @@ TRUNC_FUNCTION(trunc_f64_to_i32, float64, uint32, int32)
 TRUNC_FUNCTION(trunc_f64_to_i64, float64, uint64, int64)
 
 static bool
-trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, float32 src_min,
+trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp, float32 src_min,
                  float32 src_max, bool saturating, bool is_i32, bool is_sign)
 {
     float32 src_value = POP_F32();
@@ -619,7 +623,7 @@ trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, float32 src_min,
 }
 
 static bool
-trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, float64 src_min,
+trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp, float64 src_min,
                  float64 src_max, bool saturating, bool is_i32, bool is_sign)
 {
     float64 src_value = POP_F64();
@@ -656,27 +660,27 @@ trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, float64 src_min,
 
 #define DEF_OP_TRUNC_F32(min, max, is_i32, is_sign)                      \
     do {                                                                 \
-        if (!trunc_f32_to_int(module, frame_sp, min, max, false, is_i32, \
+        if (!trunc_f32_to_int(module, frame_sp, frame_tsp, min, max, false, is_i32, \
                               is_sign))                                  \
             goto got_exception;                                          \
     } while (0)
 
 #define DEF_OP_TRUNC_F64(min, max, is_i32, is_sign)                      \
     do {                                                                 \
-        if (!trunc_f64_to_int(module, frame_sp, min, max, false, is_i32, \
+        if (!trunc_f64_to_int(module, frame_sp, frame_tsp, min, max, false, is_i32, \
                               is_sign))                                  \
             goto got_exception;                                          \
     } while (0)
 
 #define DEF_OP_TRUNC_SAT_F32(min, max, is_i32, is_sign)                  \
     do {                                                                 \
-        (void)trunc_f32_to_int(module, frame_sp, min, max, true, is_i32, \
+        (void)trunc_f32_to_int(module, frame_sp, frame_tsp, min, max, true, is_i32, \
                                is_sign);                                 \
     } while (0)
 
 #define DEF_OP_TRUNC_SAT_F64(min, max, is_i32, is_sign)                  \
     do {                                                                 \
-        (void)trunc_f64_to_int(module, frame_sp, min, max, true, is_i32, \
+        (void)trunc_f64_to_int(module, frame_sp, frame_tsp, min, max, true, is_i32, \
                                is_sign);                                 \
     } while (0)
 
@@ -1196,6 +1200,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint8 *frame_ip = &opcode_IMPDEP; /* cache of frame->ip */
     uint32 *frame_lp = NULL;          /* cache of frame->lp */
     uint32 *frame_sp = NULL;          /* cache of frame->sp */
+    uint32 *frame_tsp = NULL;
     WASMBranchBlock *frame_csp = NULL;
     BlockAddr *cache_items;
     uint8 *frame_ip_end = frame_ip + 1;
@@ -3858,6 +3863,7 @@ migration_async:
                 frame = prev_frame;
                 frame_ip = frame->ip;
                 frame_sp = frame->sp;
+                frame_tsp = frame->tsp;
                 frame_csp = frame->csp;
                 goto call_func_from_entry;
             }
@@ -3990,7 +3996,9 @@ migration_async:
             all_cell_num = cur_func->param_cell_num + cur_func->local_cell_num
                            + cur_wasm_func->max_stack_cell_num
                            + cur_wasm_func->max_block_num
-                                 * (uint32)sizeof(WASMBranchBlock) / 4;
+                                 * (uint32)sizeof(WASMBranchBlock) / 4
+                           + cur_wasm_func->max_stack_cell_num; // tsp size.
+
             /* param_cell_num, local_cell_num, max_stack_cell_num and
                max_block_num are all no larger than UINT16_MAX (checked
                in loader), all_cell_num must be smaller than 1MB */
@@ -4017,6 +4025,11 @@ migration_async:
                 (WASMBranchBlock *)frame->sp_boundary;
             frame->csp_boundary =
                 frame->csp_bottom + cur_wasm_func->max_block_num;
+
+            frame_tsp = frame->tsp_bottom = 
+                (uint32 *)frame->csp_boundary;
+            frame->tsp_boundary = 
+                frame->tsp_bottom + cur_wasm_func->max_stack_cell_num;
 
             /* Initialize the local variables */
             memset(frame_lp + cur_func->param_cell_num, 0,
