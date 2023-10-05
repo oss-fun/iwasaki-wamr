@@ -403,6 +403,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame->sp = frame_sp;   \
         frame->ip = frame_ip;   \
         frame->csp = frame_csp; \
+        frame->tsp = frame_tsp; \
     } while (0)
 
 #define UPDATE_ALL_FROM_FRAME() \
@@ -410,6 +411,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_sp = frame->sp;   \
         frame_ip = frame->ip;   \
         frame_csp = frame->csp; \
+        frame_tsp = frame->tsp; \
     } while (0)
 
 #define read_leb_int64(p, p_end, res)              \
