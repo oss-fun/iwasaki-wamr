@@ -352,6 +352,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_csp->begin_addr = frame_ip;                             \
         frame_csp->target_addr = _target_addr;                        \
         frame_csp->frame_sp = frame_sp - param_cell_num;              \
+        frame_csp->frame_tsp = frame_tsp - param_cell_num;            \
         frame_csp++;                                                  \
     } while (0)
 
@@ -377,18 +378,23 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 #define POP_CSP_N(n)                                             \
     do {                                                         \
         uint32 *frame_sp_old = frame_sp;                         \
+        uint32 *frame_tsp_old = frame_tsp;                       \
         uint32 cell_num_to_copy;                                 \
         POP_CSP_CHECK_OVERFLOW(n + 1);                           \
         frame_csp -= n;                                          \
         frame_ip = (frame_csp - 1)->target_addr;                 \
         /* copy arity values of block */                         \
         frame_sp = (frame_csp - 1)->frame_sp;                    \
+        frame_tsp = (frame_csp - 1)->frame_tsp;                  \
         cell_num_to_copy = (frame_csp - 1)->cell_num;            \
         if (cell_num_to_copy > 0) {                              \
             word_copy(frame_sp, frame_sp_old - cell_num_to_copy, \
                       cell_num_to_copy);                         \
+            word_copy(frame_tsp, frame_tsp_old - cell_num_to_copy, \
+                      cell_num_to_copy);                         \
         }                                                        \
         frame_sp += cell_num_to_copy;                            \
+        frame_tsp += cell_num_to_copy;                           \
     } while (0)
 
 /* Pop the given number of elements from the given frame's stack.  */
@@ -396,6 +402,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
     do {               \
         int n = (N);   \
         frame_sp -= n; \
+        frame_tsp -= n;\
     } while (0)
 
 #define SYNC_ALL_TO_FRAME()     \
@@ -474,6 +481,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         RECOVER_FRAME_IP_END();         \
         frame_lp = frame->lp;           \
         frame_sp = frame->sp;           \
+        frame_tsp = frame->tsp;         \
         frame_csp = frame->csp;         \
     } while (0)
 
@@ -520,6 +528,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
         *(src_type1 *)(frame_sp - sizeof(src_type1) / sizeof(uint32)) \
             operation## = *(src_type2 *)(frame_sp);                   \
+        frame_tsp--;                                                  \
+        frame_tsp = sizeof(src_type2) == 8 ? 1 : 0;                   \
     } while (0)
 
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
@@ -534,6 +544,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);      \
         val1 operation## = val2;                                        \
         PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                \
+        frame_tsp--;                                                  \
+        frame_tsp = sizeof(src_type2) == 8 ? 1 : 0;                   \
     } while (0)
 #endif
 
@@ -542,6 +554,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
         *(src_type1 *)(frame_sp - sizeof(src_type1) / sizeof(uint32)) \
             operation## = (*(src_type2 *)(frame_sp) % 32);            \
+        frame_tsp--;                                                  \
+        frame_tsp = sizeof(src_type2) == 8 ? 1 : 0;                   \
     } while (0)
 
 #define DEF_OP_NUMERIC2_64(src_type1, src_type2, src_op_type, operation) \
@@ -553,6 +567,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);       \
         val1 operation## = (val2 % 64);                                  \
         PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                 \
+        frame_tsp--;                                                  \
+        frame_tsp = sizeof(src_type2) == 8 ? 1 : 0;                   \
     } while (0)
 
 #define DEF_OP_MATH(src_type, src_op_type, method) \

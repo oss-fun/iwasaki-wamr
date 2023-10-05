@@ -612,6 +612,7 @@ typedef struct WASMBranchBlock {
     uint8 *begin_addr;
     uint8 *target_addr;
     uint32 *frame_sp;
+    uint32 *frame_tsp;
     uint32 cell_num;
 } WASMBranchBlock;
 
