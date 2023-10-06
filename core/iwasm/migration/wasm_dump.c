@@ -51,6 +51,24 @@ RevFrame *walk_rev_frame(RevFrame *rf) {
     return rf->next;
 }
 
+void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
+    RevFrame *rf = init_rev_frame(frame);
+    WASMModuleInstance *module = exec_env->module_inst;
+
+    int cnt = 0;
+    printf("=== DEBUG Frame Stack ===\n");
+    do {
+        cnt++;
+        if (rf->frame->function == NULL) {
+            printf("%d) func_idx: -1\n", cnt);
+        }
+        else {
+            printf("%d) func_idx: %d\n", cnt, rf->frame->function - module->e->functions);
+        }
+    } while (rf = rf->next);
+    printf("=== DEBUG Frame Stack ===\n");
+}
+
 /* wasm_dump for wasmedge */
 int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
     FILE *fp;
@@ -212,6 +230,7 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
             fprintf(fp, "%ld\n", *(uint64*)(cur_sp));
             cur_sp += 2;
         }
+        cur_tsp++;
     }
     bh_assert(cur_sp == frame->sp);
     bh_assert(cur_tsp == frame->tsp);
@@ -295,12 +314,17 @@ int wasm_dump_for_wasmedge(
         return rc;
     }
 
+    // debug
+    debug_frame_info(exec_env, frame);
+
     rc = wasm_dump_stack_for_wasmedge(frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump stack for wasmedge\n");
         return rc;
     }
     
+    LOG_VERBOSE("Success to dump img for wasmedge\n");
+    return 0;
 }
 
 /* wasm_dump for webassembly micro runtime */
@@ -617,5 +641,6 @@ int wasm_dump(WASMExecEnv *exec_env,
         return rc;
     }
 
+    LOG_VERBOSE("Success to dump img for wamr\n");
     return 0;
 }
