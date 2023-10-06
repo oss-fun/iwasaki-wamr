@@ -614,7 +614,7 @@ typedef struct WASMBranchBlock {
     uint32 *frame_sp;
     uint32 *frame_tsp;
     uint32 cell_num;
-    uint32 count;
+    uint32 count; // cell_numは32bitのセルの個数だが、これは値の個数
 } WASMBranchBlock;
 
 /**

@@ -378,7 +378,6 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 
 #define POP_CSP_N(n)                                             \
     do {                                                         \
-        printf("=== Enter POP_CSP_N ===\n");                     \
         uint32 *frame_sp_old = frame_sp;                         \
         uint32 *frame_tsp_old = frame_tsp;                       \
         uint32 cell_num_to_copy, count_to_copy;                  \
@@ -387,26 +386,21 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_ip = (frame_csp - 1)->target_addr;                 \
         /* copy arity values of block */                         \
         frame_sp = (frame_csp - 1)->frame_sp;                    \
-        printf("sp_size: %d\n", (int32)(frame_sp - frame->sp_bottom)); \
         cell_num_to_copy = (frame_csp - 1)->cell_num;            \
-        printf("cell_num_to_copy: %d\n", cell_num);              \
         if (cell_num_to_copy > 0) {                              \
             word_copy(frame_sp, frame_sp_old - cell_num_to_copy, \
                       cell_num_to_copy);                         \
         }                                                        \
         frame_tsp = (frame_csp - 1)->frame_tsp;                  \
-        printf("tsp_size: %d\n", (int32)(frame_tsp - frame->tsp_bottom)); \
         count_to_copy = (frame_csp - 1)->count;                  \
-        printf("count_to_copy: %d\n", count_to_copy);            \
         if (count_to_copy > 0) {                                 \
             word_copy(frame_tsp, frame_tsp_old - count_to_copy,  \
                       count_to_copy);                            \
         }                                                        \
         frame_sp += cell_num_to_copy;                            \
         frame_tsp += count_to_copy;                              \
-        printf("sp_size: %d\n", (int32)(frame_sp - frame->sp_bottom)); \
-        printf("tsp_size: %d\n", (int32)(frame_tsp - frame->tsp_bottom)); \
-        printf("=== Exit POP_CSP_N ===\n");                      \
+        bh_assert((int32)(frame_sp-frame->sp_bottom              \
+                ==(int32)(frame_tsp-frame->tsp_bottom)));        \
     } while (0)
 
 /* Pop the given number of elements from the given frame's stack.  */
@@ -1161,6 +1155,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
     } while (0)
 #else
 uint32 tsp_size, sp_size;
+#ifdef BH_DEBUG == 1
 #define CHECK_TYPE_STACK()                                                  \
     LOG_VERBOSE("ip: 0x%x\n", *frame_ip);                                   \
     tsp_size = frame_tsp - frame->tsp_bottom;                               \
@@ -1173,6 +1168,9 @@ uint32 tsp_size, sp_size;
        printf("frame_sp size: %ld\n", frame_sp-frame->sp_bottom);           \
        bh_assert(0);                                                        \
     }
+#else
+#define CHECK_TYPE_STACK()
+#endif
 
 #define CHECK_DUMP()                                                        \
     if (sig_flag) {                                                         \
@@ -1392,9 +1390,6 @@ migration_async:
                 param_cell_num = 0;
                 param_count = 0;
                 cell_num = wasm_value_type_cell_num(value_type);
-                // 今回cell_numはvalue_typeが32bitのときsizeof(int32)/4=1
-                //                          64bitのときsizeof(int64)/4=2
-                // が入ってるから、countはcell_numに入る値の個数を入れるため、1とする
                 result_count = cell_num ? 1 : 0;
             handle_op_block:
                 cache_index = ((uintptr_t)frame_ip)
@@ -1460,9 +1455,6 @@ migration_async:
                 param_cell_num = 0;
                 param_count = 0;
                 cell_num = wasm_value_type_cell_num(value_type);
-                // 今回cell_numはvalue_typeが32bitのときsizeof(int32)/4=1
-                //                          64bitのときsizeof(int64)/4=2
-                // が入ってるから、countはcell_numに入る値の個数を入れるため、1とする
                 result_count = cell_num ? 1 : 0;
             handle_op_if:
                 cache_index = ((uintptr_t)frame_ip)
@@ -1514,20 +1506,11 @@ migration_async:
             HANDLE_OP(WASM_OP_END)
             {
                 if (frame_csp > frame->csp_bottom + 1) {
-                    printf("== OP_END ==\n");
                     POP_CSP();
                 }
                 else { /* end of function, treat as WASM_OP_RETURN */
-                    printf("== OP_END ==\n");
-                    printf("1) before operation\n");
-                    printf("sp size: %ld\n", frame_sp - frame->sp_bottom);
-                    printf("tsp size: %ld\n", frame_tsp - frame->tsp_bottom);
-
                     frame_sp -= cur_func->ret_cell_num;
                     frame_tsp -= cur_func->result_count;
-                    printf("2) minus ret_cell_num & result_count\n");
-                    printf("sp size: %ld\n", frame_sp - frame->sp_bottom);
-                    printf("tsp size: %ld\n", frame_tsp - frame->tsp_bottom);
 
                     for (i = 0; i < cur_func->ret_cell_num; i++) {
                         *prev_frame->sp++ = frame_sp[i];
@@ -1535,10 +1518,6 @@ migration_async:
                     for (i = 0; i < cur_func->result_count; i++) {
                         *prev_frame->tsp++ = frame_tsp[i];
                     }
-                    printf("3) after operation\n");
-                    printf("sp size: %ld\n", frame_sp - frame->sp_bottom);
-                    printf("tsp size: %ld\n", frame_tsp - frame->tsp_bottom);
-                    printf("== OP_END ==\n");
                     goto return_func;
                 }
                 HANDLE_OP_END();
@@ -1719,12 +1698,8 @@ migration_async:
             /* parametric instructions */
             HANDLE_OP(WASM_OP_DROP)
             {
-                printf("=== OP_DROP ===\n");
-                printf("sp size: %d\n", frame_sp - frame->sp_bottom);
-                printf("tsp size: %d\n", frame_tsp - frame->tsp_bottom);
                 frame_sp--;
                 frame_tsp--;
-                printf("=== OP_DROP ===\n");
                 HANDLE_OP_END();
             }
 
@@ -1890,7 +1865,6 @@ migration_async:
 
             HANDLE_OP(WASM_OP_SET_LOCAL)
             {
-                printf("OP_SET_LOCAL\n");
                 GET_LOCAL_INDEX_TYPE_AND_OFFSET();
 
                 switch (local_type) {
@@ -1900,12 +1874,10 @@ migration_async:
                     case VALUE_TYPE_FUNCREF:
                     case VALUE_TYPE_EXTERNREF:
 #endif
-                        printf("local type is i32\n");
                         *(int32 *)(frame_lp + local_offset) = POP_I32();
                         break;
                     case VALUE_TYPE_I64:
                     case VALUE_TYPE_F64:
-                        printf("local type is i64\n");
                         PUT_I64_TO_ADDR((uint32 *)(frame_lp + local_offset),
                                         POP_I64());
                         break;
@@ -2345,14 +2317,7 @@ migration_async:
 
             /* constant instructions */
             HANDLE_OP(WASM_OP_I32_CONST);
-            if (frame_tsp - frame->tsp_bottom < 0) {
-                printf("xxxxxxxx\n");
-            }
             DEF_OP_I_CONST(int32, I32);
-            if (frame_tsp - frame->tsp_bottom < 0) {
-                printf("xxxxxxxx\n");
-                bh_assert(-1);
-            }
             HANDLE_OP_END();
 
             HANDLE_OP(WASM_OP_I64_CONST)
@@ -4077,30 +4042,21 @@ migration_async:
             word_copy(outs_area->lp, frame_sp, cur_func->param_cell_num);
         }
         prev_frame = frame;
-        printf("=== OP_CALL ===\n");
-        printf("1) call_func_from_interp\n");
-        printf("sp_size: %ld\n", frame->sp - frame->sp_bottom);
-        printf("tsp_size: %ld\n", frame->tsp - frame->tsp_bottom);
-
         if (frame->tsp != NULL && frame->tsp_bottom != NULL)
             bh_assert(frame->tsp - frame->tsp_bottom >= 0);
     }
 
     call_func_from_entry:
     {
-        printf("Enter call_func_fro_entry\n");
         if (cur_func->is_import_func) {
-            printf("Call import func\n");
 #if WASM_ENABLE_MULTI_MODULE != 0
             if (cur_func->import_func_inst) {
-                printf("Call import func\n");
                 wasm_interp_call_func_import(module, exec_env, cur_func,
                                              prev_frame);
             }
             else
 #endif
             {
-                printf("Call native func\n");
                 wasm_interp_call_func_native(module, exec_env, cur_func,
                                              prev_frame);
             }
@@ -4172,9 +4128,6 @@ migration_async:
             cell_num = func_type->ret_cell_num;
             result_count = func_type->result_count;
 
-            printf("2) Before PUSH_CSP\n");
-            printf("sp_size: %ld\n", frame->sp - frame->sp_bottom);
-            printf("tsp_size: %ld\n", frame->tsp - frame->tsp_bottom);
             PUSH_CSP(LABEL_TYPE_FUNCTION, 0, 0, cell_num, result_count, frame_ip_end - 1);
 
             wasm_exec_env_set_cur_frame(exec_env, frame);
@@ -4182,10 +4135,6 @@ migration_async:
 #if WASM_ENABLE_THREAD_MGR != 0
         CHECK_SUSPEND_FLAGS();
 #endif
-        printf("3) Exit op_call\n");
-        printf("sp_size: %ld\n", frame->sp - frame->sp_bottom);
-        printf("tsp_size: %ld\n", frame->tsp - frame->tsp_bottom);
-        printf("=== OP_CALL ===\n");
         HANDLE_OP_END();
     }
 

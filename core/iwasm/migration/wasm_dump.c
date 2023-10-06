@@ -216,8 +216,6 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     cur_sp = frame->sp_bottom;
     cur_tsp = frame->tsp_bottom;
 
-    printf("tsp_num: %d\n", tsp_num);
-    printf("sp_num: %d\n", sp_num);
     for (uint32 i = 0; i < tsp_num; i++) {
         uint32 type = *(cur_tsp+i);
         // sp[i]: 32bit型
@@ -315,7 +313,7 @@ int wasm_dump_for_wasmedge(
     }
 
     // debug
-    debug_frame_info(exec_env, frame);
+    // debug_frame_info(exec_env, frame);
 
     rc = wasm_dump_stack_for_wasmedge(frame);
     if (rc < 0) {
