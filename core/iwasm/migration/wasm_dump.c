@@ -176,12 +176,12 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
         switch (func->param_types[i]) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                fprintf(fp, "%d\n", *(uint32 *)lp);
+                fprintf(fp, "%u\n", *(uint32 *)lp);
                 lp++;
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                fprintf(fp, "%ld\n", *(uint64 *)lp);
+                fprintf(fp, "%lu\n", *(uint64 *)lp);
                 lp += 2;
                 break;
             default:
@@ -195,12 +195,12 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
         switch (func->local_types[i]) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                fprintf(fp, "%d\n", *(uint32 *)lp);
+                fprintf(fp, "%u\n", *(uint32 *)lp);
                 lp++;
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                fprintf(fp, "%ld\n", *(uint64 *)lp);
+                fprintf(fp, "%lu\n", *(uint64 *)lp);
                 lp += 2;
                 break;
             default:
@@ -220,12 +220,12 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
         uint32 type = *(cur_tsp+i);
         // sp[i]: 32bit型
         if (type == 0) {
-            fprintf(fp, "%d\n", *(uint32*)(cur_sp));
+            fprintf(fp, "%u\n", *(uint32*)(cur_sp));
             cur_sp++;
         }
         // sp[i]: 64bit型
         else if (type == 1) {
-            fprintf(fp, "%ld\n", *(uint64*)(cur_sp));
+            fprintf(fp, "%lu\n", *(uint64*)(cur_sp));
             cur_sp += 2;
         }
         cur_tsp++;
@@ -267,19 +267,19 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
 
         // ダミーフレーム
         if (frame->function == NULL) {
-            // WasmEdgeではダミーフレームの場合、ModNameのみ出力するようにしている
-            fprintf(fp, "%s\n", mod_name);
+            // WasmEdgeではダミーフレームの場合、NullModNameのみ出力するようにしている
+            fprintf(fp, "null\n");
         }
         else {
+            // dump mod_name
+            // TODO: importされたmoduleの場合どうする
+            fprintf(fp, "%s\n", mod_name);   
+
             // dump iter
             uint32 func_idx = frame->function - module->e->functions;
             uint32 ip_ofs = frame->ip - wasm_get_func_code(frame->function);
             fprintf(fp, "%d\n", func_idx);
             fprintf(fp, "%d\n", ip_ofs);
-            
-            // dump mod_name
-            // TODO: importされたmoduleの場合どうする
-            fprintf(fp, "%s\n", mod_name);   
             
             // param_count + local_count
             uint32 locals = frame->function->param_count + frame->function->local_count;
