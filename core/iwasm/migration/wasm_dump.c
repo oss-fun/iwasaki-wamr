@@ -236,6 +236,70 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     return 0;
 }
 
+int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFrame *frame) {
+    int rc;
+    FILE *fp;
+    char *file = "frame_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+    
+    /*
+     * iter
+     *  func_idx
+     *  offset
+     * module_name
+     * param_count + local_count
+     * result_count
+     * stack_count (= tsp_size)
+    */
+    const char* mod_name = "";
+    RevFrame *rf = init_rev_frame(frame);
+    // frameをbottomからtopまで走査する
+    do {
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
+        // ダミーフレーム
+        if (frame->function == NULL) {
+            // WasmEdgeではダミーフレームの場合、ModNameのみ出力するようにしている
+            fprintf(fp, "%s\n", mod_name);
+        }
+        else {
+            // dump iter
+            uint32 func_idx = frame->function - module->e->functions;
+            uint32 ip_ofs = frame->ip - wasm_get_func_code(frame->function);
+            fprintf(fp, "%d\n", func_idx);
+            fprintf(fp, "%d\n", ip_ofs);
+            
+            // dump mod_name
+            // TODO: importされたmoduleの場合どうする
+            fprintf(fp, "%s\n", mod_name);   
+            
+            // param_count + local_count
+            uint32 locals = frame->function->param_count + frame->function->local_count;
+            fprintf(fp, "%d\n", locals);
+            
+            // result_count
+            uint32 arity = frame->function->result_count;
+            fprintf(fp, "%d\n", arity);
+            
+            // tsp size
+            uint32 stack_count = frame->tsp - frame->tsp_bottom;
+            fprintf(fp, "%d\n", stack_count);
+        }
+        // WasmEdgeでは、フレームの区切りで空行が入る
+        fprintf(fp, "\n");
+    } while(rf = rf->next);
+    fclose(fp);
+    return 0;
+}
+
 int
 wasm_dump_stack_for_wasmedge(struct WASMInterpFrame *frame)
 {
@@ -318,6 +382,12 @@ int wasm_dump_for_wasmedge(
     rc = wasm_dump_stack_for_wasmedge(frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump stack for wasmedge\n");
+        return rc;
+    }
+    
+    rc = wasm_dump_frame_for_wasmedge(exec_env->module_inst, frame);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump frame for wasmedge\n");
         return rc;
     }
     
