@@ -1277,7 +1277,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint8 value_type;
     uint32 dispatch_count = 0;
     uint32 absolute_dispatch_count = 0;
-    uint32 dispatch_limit = 10000;
+    uint32 dispatch_limit = 10000-20;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
 #if WASM_CONFIGUABLE_BOUNDS_CHECKS != 0
