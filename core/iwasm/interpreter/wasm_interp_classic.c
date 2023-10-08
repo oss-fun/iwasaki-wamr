@@ -1134,7 +1134,11 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
-#define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++];
+#define FETCH_OPCODE_AND_DISPATCH()                                     \
+do {                                                                    \
+    dispatch_count++;                                                   \
+    goto *handle_table[*frame_ip++];                                    \
+} while(0);
 
 #if WASM_ENABLE_THREAD_MGR != 0 && WASM_ENABLE_DEBUG_INTERP != 0
 #define HANDLE_OP_END()                                                   \
@@ -1173,6 +1177,9 @@ uint32 tsp_size, sp_size;
 #endif
 
 #define CHECK_DUMP()                                                        \
+    if (dispatch_count >= dispatch_limit) {                                 \
+        sig_flag = true;                                                    \
+    }                                                                       \
     if (sig_flag) {                                                         \
         goto migration_async;                                               \
     }
@@ -1264,6 +1271,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint32 cache_index, type_index, param_cell_num, cell_num;
     uint32 param_count, result_count;
     uint8 value_type;
+    uint32 dispatch_count = 0;
+    uint32 dispatch_limit = 10000;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
 #if WASM_CONFIGUABLE_BOUNDS_CHECKS != 0

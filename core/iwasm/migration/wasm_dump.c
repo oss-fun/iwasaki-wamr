@@ -236,7 +236,31 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     return 0;
 }
 
-int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFrame *frame) {
+int dump_frame_for_wasmedge(FILE *fp, const char* mod_name, uint32 fidx, uint32 ip_offset,
+                uint32 locals, uint32 vpos, uint32 arity)
+{
+    if (fp == NULL) return -1;
+    
+    // mod name
+    fprintf(fp, "%s\n", mod_name);
+    
+    // iterator
+    fprintf(fp, "%u\n", fidx);
+    fprintf(fp, "%u\n", ip_offset);
+    
+    // locals
+    fprintf(fp, "%u\n", locals);
+
+    // vpos
+    fprintf(fp, "%u\n", vpos);
+
+    // vpos
+    fprintf(fp, "%u\n", arity);
+    
+    return 0;
+}
+
+int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFrame *top_frame) {
     int rc;
     FILE *fp;
     char *file = "frame_for_wasmedge.img";
@@ -247,19 +271,48 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
     }
     
     /*
+     * ModName: module_name
      * iter
      *  func_idx
      *  offset
-     * module_name
-     * param_count + local_count
-     * result_count
-     * stack_count (= tsp_size)
+     * Locals: param_count + local_count
+     * VPos: stack_size
+     * Arity: result_count
     */
     const char* mod_name = "";
-    RevFrame *rf = init_rev_frame(frame);
+    RevFrame *rf = init_rev_frame(top_frame);
+    WASMInterpFrame *frame = rf->frame;
+    uint32 stack_count = 0;
+    uint32 fidx, ip_ofs;
     // frameをbottomからtopまで走査する
+    
+    // dummy frame
+    // ダミーフレーム
+    if (frame->function == NULL) {
+        // WasmEdgeではダミーフレームの場合、NullModNameのみ出力するようにしている
+        fprintf(fp, "null\n");
+    }
+    rf = rf->next;
+    if (rf == NULL) return 0;
+
+    // start_funtionのinstr.endをpushする
+    {
+        frame = rf->frame;
+        fidx = frame->function - module->e->functions;
+        ip_ofs = frame->ip - wasm_get_func_code(frame->function);
+
+        uint32 ip_end = frame->function->u.func->code + frame->function->u.func->code_size;
+        uint32 locals = frame->function->param_count + frame->function->local_count;
+        stack_count += locals;
+        stack_count += frame->tsp - frame->tsp_bottom;
+        uint32 arity = frame->function->result_count;
+
+        dump_frame_for_wasmedge(fp, mod_name, fidx, ip_end, locals, stack_count, arity);
+        rf = rf->next;
+    }
+    
     do {
-        WASMInterpFrame *frame = rf->frame;
+        frame = rf->frame;
         if (frame == NULL) {
             perror("wasm_dump_frame: frame is null\n");
             break;
@@ -273,25 +326,15 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
         else {
             // dump mod_name
             // TODO: importされたmoduleの場合どうする
-            fprintf(fp, "%s\n", mod_name);   
-
-            // dump iter
-            uint32 func_idx = frame->function - module->e->functions;
-            uint32 ip_ofs = frame->ip - wasm_get_func_code(frame->function);
-            fprintf(fp, "%d\n", func_idx);
-            fprintf(fp, "%d\n", ip_ofs);
-            
-            // param_count + local_count
             uint32 locals = frame->function->param_count + frame->function->local_count;
-            fprintf(fp, "%d\n", locals);
-            
-            // result_count
+            stack_count += locals;
+            stack_count += frame->tsp - frame->tsp_bottom;
             uint32 arity = frame->function->result_count;
-            fprintf(fp, "%d\n", arity);
-            
-            // tsp size
-            uint32 stack_count = frame->tsp - frame->tsp_bottom;
-            fprintf(fp, "%d\n", stack_count);
+
+            dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
+
+            fidx = frame->function - module->e->functions;
+            ip_ofs = frame->ip - wasm_get_func_code(frame->function);
         }
         // WasmEdgeでは、フレームの区切りで空行が入る
         fprintf(fp, "\n");
