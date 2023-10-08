@@ -4,6 +4,7 @@
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
 #include "wasm_dump.h"
+#include "wasm_dispatch.h"
 
 // #define skip_leb(p) while (*p++ & 0x80)
 #define skip_leb(p)                     \
@@ -74,6 +75,22 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
         }
     } while (rf = rf->next);
     printf("=== DEBUG Frame Stack ===\n");
+}
+
+int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
+    uint32 cnt = 0;
+    bh_assert(ip != NULL);
+    bh_assert(ip_lim != NULL);
+    bh_assert(ip <= ip_lim);
+    if (ip > ip_lim) return -1;
+    if (ip == ip_lim) return 0;
+    while (1) {
+        LOG_DEBUG("get_opcode_offset::ip: 0x%x\n", *ip);
+        ip = dispatch(ip);
+        cnt++;
+        if (ip >= ip_lim) break;
+    }
+    return cnt;
 }
 
 /* wasm_dump for wasmedge */
@@ -159,12 +176,12 @@ int wasm_dump_program_counter_for_wasmedge (
     }
     
     // dump func_idx
-    uint32 func_idx = func - module->e->functions;
-    fprintf(fp, "%d\n", func_idx);
+    uint32 fidx = func - module->e->functions;
+    fprintf(fp, "%d\n", fidx);
 
     // dump ip_offset
-    uint32 ip_offset = frame_ip - wasm_get_func_code(func);
-    fprintf(fp, "%d\n", ip_offset);
+    uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(func), frame_ip);
+    fprintf(fp, "%d\n", ip_ofs);
 
     fclose(fp);
     return 0;
@@ -273,29 +290,13 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
     uint8 *ip_end = wasm_get_func_code_end(func);
     
     for (int i = 0; i < 60; i++) {
-        printf("%d) opcode: 0x%x\n", i+1, *ip++);
-        skip_leb(ip);
+        printf("%d) opcode: 0x%x\n", i+1, *ip);
+        ip = dispatch(ip);
         if (ip >= ip_end)break;
     }
     printf("\n");
 }
 
-int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
-    uint32 cnt = 0;
-    bh_assert(ip != NULL);
-    bh_assert(ip_lim != NULL);
-    bh_assert(ip <= ip_lim);
-    if (ip > ip_lim) return -1;
-    if (ip == ip_lim) return 0;
-    while (1) {
-        LOG_DEBUG("get_opcode_offset::ip: 0x%x\n", *ip);
-        ip++;
-        skip_leb(ip);
-        cnt++;
-        if (ip >= ip_lim) break;
-    }
-    return cnt;
-}
 
 int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFrame *top_frame) {
     int rc;
@@ -331,6 +332,7 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
         if (frame->function == NULL) {
             // WasmEdgeではダミーフレームの場合、NullModNameのみ出力するようにしている
             fprintf(fp, "null\n");
+            fprintf(fp, "\n");
         }
         rf = rf->next;
         if (rf == NULL) return 0;
@@ -343,7 +345,7 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
 
         ip_start = wasm_get_func_code(frame->function);
         ip_end = wasm_get_func_code_end(frame->function);
-        ip_ofs = get_opcode_offset(ip_start, ip_end);
+        ip_ofs = get_opcode_offset(ip_start, ip_end) - 1;
 
         uint32 locals = frame->function->param_count + frame->function->local_count;
         stack_count += locals;
@@ -352,8 +354,9 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
 
         cnt++;
         dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
+        fprintf(fp, "\n");
 
-        ip_ofs = get_opcode_offset(ip_start, frame->ip);
+        ip_ofs = get_opcode_offset(ip_start, frame->ip) - 1;
         LOG_DEBUG("%d) fidx: %d, offset: %d, opcode: %x\n",cnt, fidx, ip_ofs, *frame->ip);
 
         rf = rf->next;
@@ -386,7 +389,7 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
             // fidxとip_ofsは前のフレームのものをdumpするため、ここで更新
             fidx = frame->function - module->e->functions;
             ip_start = wasm_get_func_code(frame->function);
-            ip_ofs = get_opcode_offset(ip_start, frame->ip);
+            ip_ofs = get_opcode_offset(ip_start, frame->ip) - 1;
         }
         // WasmEdgeでは、フレームの区切りで空行が入る
         fprintf(fp, "\n");
