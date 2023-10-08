@@ -5,14 +5,57 @@
 #include "../interpreter/wasm_opcode.h"
 #include "wasm_dispatch.h"
 
+static uint64
+read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
+{
+    uint64 result = 0, byte;
+    uint32 offset = *p_offset;
+    uint32 shift = 0;
+
+    while (true) {
+        byte = buf[offset++];
+        result |= ((byte & 0x7f) << shift);
+        shift += 7;
+        if ((byte & 0x80) == 0) {
+            break;
+        }
+    }
+    if (sign && (shift < maxbits) && (byte & 0x40)) {
+        /* Sign extend */
+        result |= (~((uint64)0)) << shift;
+    }
+    *p_offset = offset;
+    return result;
+}
+
+#define read_leb_uint32(p, p_end, res)               \
+    do {                                             \
+        uint8 _val = *p;                             \
+        if (!(_val & 0x80)) {                        \
+            res = _val;                              \
+            p++;                                     \
+            break;                                   \
+        }                                            \
+        uint32 _off = 0;                             \
+        res = (uint32)read_leb(p, &_off, 32, false); \
+        p += _off;                                   \
+    } while (0)
+
 #define skip_leb(p) while (*p++ & 0x80)
 
 // *ipにopcodeが入ってる状態で引数に渡す
-uint8* dispatch(uint8 *ip) {
+uint8* dispatch(uint8 *ip, uint8 *ip_end) {
+    uint32 lidx;
     switch (*ip++) {
         case WASM_OP_CALL_INDIRECT:
         case WASM_OP_RETURN_CALL_INDIRECT:
             skip_leb(ip);
+            skip_leb(ip);
+            break;
+        case WASM_OP_BR_TABLE:
+            read_leb_uint32(ip, ip_end, lidx);
+            for (uint32 i = 0; i < lidx; i++)
+                skip_leb(ip);
             skip_leb(ip);
             break;
         /* control instructions */
@@ -24,7 +67,6 @@ uint8* dispatch(uint8 *ip) {
         case WASM_OP_IF:
         case WASM_OP_BR:
         case WASM_OP_BR_IF:
-        case WASM_OP_BR_TABLE:
         case WASM_OP_CALL:
         case WASM_OP_RETURN_CALL:
 #if WASM_ENABLE_REF_TYPES != 0
@@ -36,17 +78,19 @@ uint8* dispatch(uint8 *ip) {
 #endif
         /* variable instructions */
         case WASM_OP_GET_LOCAL:
-        case EXT_OP_GET_LOCAL_FAST:
         case WASM_OP_SET_LOCAL:
-        case EXT_OP_SET_LOCAL_FAST:
         case WASM_OP_TEE_LOCAL:
-        case EXT_OP_TEE_LOCAL_FAST:
         case WASM_OP_GET_GLOBAL:
         case WASM_OP_GET_GLOBAL_64:
         case WASM_OP_SET_GLOBAL:
         case WASM_OP_SET_GLOBAL_AUX_STACK:
         case WASM_OP_SET_GLOBAL_64:
             skip_leb(ip);
+            break;
+        case EXT_OP_GET_LOCAL_FAST:
+        case EXT_OP_SET_LOCAL_FAST:
+        case EXT_OP_TEE_LOCAL_FAST:
+            ip++;
             break;
         /* memory load instructions */
         case WASM_OP_I32_LOAD:
