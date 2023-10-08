@@ -416,7 +416,6 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
     do {                        \
         frame->sp = frame_sp;   \
         frame->ip = frame_ip;   \
-        frame->dispatch_count = dispatch_count; \
         frame->csp = frame_csp; \
         frame->tsp = frame_tsp; \
     } while (0)
@@ -425,7 +424,6 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
     do {                        \
         frame_sp = frame->sp;   \
         frame_ip = frame->ip;   \
-        dispatch_count = frame->dispatch_count; \
         frame_csp = frame->csp; \
         frame_tsp = frame->tsp; \
     } while (0)
@@ -1138,9 +1136,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
-    absolute_dispatch_count++;                                          \
     dispatch_count++;                                                   \
-    printf("    opcode: 0x%x\n", *frame_ip);                            \
     goto *handle_table[*frame_ip++];                                    \
 } while(0);
 
@@ -1181,7 +1177,7 @@ uint32 tsp_size, sp_size;
 #endif
 
 #define CHECK_DUMP()                                                        \
-    if (absolute_dispatch_count >= dispatch_limit) {                        \
+    if (dispatch_count >= dispatch_limit) {                                 \
         sig_flag = true;                                                    \
     }                                                                       \
     if (sig_flag) {                                                         \
@@ -1276,7 +1272,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint32 param_count, result_count;
     uint8 value_type;
     uint32 dispatch_count = 0;
-    uint32 absolute_dispatch_count = 0;
     uint32 dispatch_limit = 10000-20;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
@@ -4118,7 +4113,6 @@ migration_async:
             frame->function = cur_func;
             frame_ip = wasm_get_func_code(cur_func);
             frame_ip_end = wasm_get_func_code_end(cur_func);
-            dispatch_count = 0;
             frame_lp = frame->lp;
 
             frame_sp = frame->sp_bottom =

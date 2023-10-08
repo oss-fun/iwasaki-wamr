@@ -25,7 +25,6 @@ typedef struct WASMInterpFrame {
 
     /* Instruction pointer of the bytecode array.  */
     uint8 *ip;
-    uint32 dispatch_count;
 
 #if WASM_ENABLE_FAST_JIT != 0
     uint8 *jitted_return_addr;
