@@ -92,6 +92,7 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
     printf("\n");
 }
 
+// ipからip_limまでにopcodeがいくつかるかを返す
 int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     uint32 cnt = 0;
     bh_assert(ip != NULL);
@@ -256,6 +257,13 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     uint32 *cur_sp, *cur_tsp;
     cur_sp = frame->sp_bottom;
     cur_tsp = frame->tsp_bottom;
+    
+    printf("=== type stack ===\n");
+    printf("tsp_num: %d\n", tsp_num);
+    for (uint32 i = 0; i < tsp_num; i++) {
+        printf("%d) %dbit\n", i+1, *(cur_tsp+i) == 1 ? 64 : 32);
+    }
+    printf("=== type stack ===\n\n");
 
     for (uint32 i = 0; i < tsp_num; i++) {
         uint32 type = *(cur_tsp+i);
@@ -274,6 +282,44 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     bh_assert(cur_sp == frame->sp);
     bh_assert(cur_tsp == frame->tsp);
 
+    return 0;
+}
+
+int
+wasm_dump_stack_for_wasmedge(struct WASMInterpFrame *frame)
+{
+    int rc;
+    FILE *fp;
+    char *file = "stack_for_wasmedge.img";
+    fp = fopen(file, "w");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    RevFrame *rf = init_rev_frame(frame);
+    // frameをbottomからtopまで走査する
+    do {
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
+        if (frame->function == NULL) {
+            // 初期フレーム
+            continue;
+        }
+        else {
+            rc = wasm_dump_stack_per_frame_for_wasmedge(frame, fp);
+            if (rc < 0) {
+                LOG_ERROR("failed to wasm_dump_stack_for_wasmedge");
+                return rc;
+            }
+        }
+    } while(rf = rf->next);
+
+    fclose(fp);
     return 0;
 }
 
@@ -296,7 +342,6 @@ int dump_frame_for_wasmedge(FILE *fp, const char* mod_name, uint32 fidx, uint32 
     
     return 0;
 }
-
 
 int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFrame *top_frame) {
     int rc;
@@ -399,43 +444,6 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
     return 0;
 }
 
-int
-wasm_dump_stack_for_wasmedge(struct WASMInterpFrame *frame)
-{
-    int rc;
-    FILE *fp;
-    char *file = "stack_for_wasmedge.img";
-    fp = fopen(file, "w");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    RevFrame *rf = init_rev_frame(frame);
-    // frameをbottomからtopまで走査する
-    do {
-        WASMInterpFrame *frame = rf->frame;
-        if (frame == NULL) {
-            perror("wasm_dump_frame: frame is null\n");
-            break;
-        }
-
-        if (frame->function == NULL) {
-            // 初期フレーム
-            continue;
-        }
-        else {
-            rc = wasm_dump_stack_per_frame_for_wasmedge(frame, fp);
-            if (rc < 0) {
-                LOG_ERROR("failed to wasm_dump_stack_for_wasmedge");
-                return rc;
-            }
-        }
-    } while(rf = rf->next);
-
-    fclose(fp);
-    return 0;
-}
 
 
 int wasm_dump_for_wasmedge(
