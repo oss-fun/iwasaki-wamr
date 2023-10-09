@@ -26,6 +26,22 @@ int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     return fwrite(ptr, size, nmemb, stream);
 }
 
+int debug_memories(WASMModuleInstance *module) {
+    printf("=== debug memories ===\n");
+    printf("memory_count: %d\n", module->memory_count);
+    
+    // bytes_per_page
+    for (int i = 0; i < module->memory_count; i++) {
+        WASMMemoryInstance *memory = (WASMMemoryInstance *)(module->memories[i]);
+        printf("%d) bytes_per_page: %d\n", i, memory->num_bytes_per_page);
+        printf("%d) cur_page_count: %d\n", i, memory->cur_page_count);
+        printf("%d) max_page_count: %d\n", i, memory->max_page_count);
+        printf("\n");
+    }
+
+    printf("=== debug memories ===\n");
+}
+
 // WASMIntrerpFrameを逆から走査できるようにするもの
 typedef struct RevFrame {
     WASMInterpFrame *frame;
@@ -90,9 +106,8 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
     for (int i = 0; i < limit; i++) {
         fprintf(fp, "%d) opcode: 0x%x\n", i+1, *ip);
         ip = dispatch(ip, ip_end);
-        if (ip >= ip_end)break;
+        if (ip >= ip_end) break;
     }
-    printf("\n");
 
     fclose(fp);
     return 0;
@@ -107,7 +122,7 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     if (ip > ip_lim) return -1;
     if (ip == ip_lim) return 0;
     while (1) {
-        LOG_DEBUG("get_opcode_offset::ip: 0x%x\n", *ip);
+        // LOG_DEBUG("get_opcode_offset::ip: 0x%x\n", *ip);
         ip = dispatch(ip, ip_lim);
         cnt++;
         if (ip >= ip_lim) break;
@@ -139,7 +154,9 @@ int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
         fprintf(stderr, "failed to open %s\n", file);
         return -1;
     }
-    fprintf(fp, "%d", memory->cur_page_count);
+    const uint32 wasmedge_page_size = 65536;
+    uint32 page_count = (memory->num_bytes_per_page / wasmedge_page_size) * memory->cur_page_count;
+    fprintf(fp, "%d", page_count);
     
     fclose(fp);
     
@@ -264,13 +281,6 @@ int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     cur_sp = frame->sp_bottom;
     cur_tsp = frame->tsp_bottom;
     
-    printf("=== type stack ===\n");
-    printf("tsp_num: %d\n", tsp_num);
-    for (uint32 i = 0; i < tsp_num; i++) {
-        printf("%d) %dbit\n", i+1, *(cur_tsp+i) == 1 ? 64 : 32);
-    }
-    printf("=== type stack ===\n\n");
-
     for (uint32 i = 0; i < tsp_num; i++) {
         uint32 type = *(cur_tsp+i);
         // sp[i]: 32bit型
@@ -401,7 +411,7 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
 
         uint32 locals = frame->function->param_count + frame->function->local_count;
         stack_count += locals;
-        stack_count += frame->tsp - frame->tsp_bottom;
+        stack_count += frame->tsp_num >= 0 ? frame->tsp_num : frame->tsp - frame->tsp_bottom;
         uint32 arity = frame->function->result_count;
 
         dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
@@ -429,11 +439,16 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
         }
         else {
             uint32 locals = frame->function->param_count + frame->function->local_count;
-            stack_count += locals;
-            stack_count += frame->tsp - frame->tsp_bottom;
+            uint32 tsp_num = frame->tsp_num >= 0 ? frame->tsp_num : frame->tsp - frame->tsp_bottom;
+            stack_count += locals + tsp_num;
+            printf("\n");
+            printf("ret fidx: %d\n", fidx);
+            printf("cur fidx: %d\n", frame->function - module->e->functions);
+            printf("tsp_addr: %p\n", frame->tsp);
+            printf("dump tsp num: %d\n", tsp_num);
             uint32 arity = frame->function->result_count;
 
-            debug_function_opcodes(module, prev_func, ip_ofs);
+            // debug_function_opcodes(module, prev_func, ip_ofs);
             dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
 
             // fidxとip_ofsは前のフレームのものをdumpするため、ここで更新
@@ -492,15 +507,15 @@ int wasm_dump_for_wasmedge(
     // debug
     // debug_frame_info(exec_env, frame);
 
-    rc = wasm_dump_stack_for_wasmedge(frame);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump stack for wasmedge\n");
-        return rc;
-    }
-    
     rc = wasm_dump_frame_for_wasmedge(exec_env->module_inst, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame for wasmedge\n");
+        return rc;
+    }
+
+    rc = wasm_dump_stack_for_wasmedge(frame);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump stack for wasmedge\n");
         return rc;
     }
     
