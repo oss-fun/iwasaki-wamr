@@ -4054,8 +4054,8 @@ migration_async:
         WASMInterpFrame *outs_area = wasm_exec_env_wasm_stack_top(exec_env);
         POP(cur_func->param_cell_num, cur_func->param_count);
         SYNC_ALL_TO_FRAME();
-        printf("tsp_addr: %p\n", frame->tsp);
-        printf("dump tsp num: %d\n", frame->tsp - frame->tsp_bottom);
+        // printf("tsp_addr: %p\n", frame->tsp);
+        // printf("dump tsp num: %d\n", frame->tsp - frame->tsp_bottom);
         if (cur_func->param_cell_num > 0) {
             word_copy(outs_area->lp, frame_sp, cur_func->param_cell_num);
         }
