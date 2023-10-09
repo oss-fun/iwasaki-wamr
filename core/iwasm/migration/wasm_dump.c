@@ -410,11 +410,10 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
         ip_ofs = get_opcode_offset(ip_start, ip_end) - 1;
 
         uint32 locals = frame->function->param_count + frame->function->local_count;
-        stack_count += locals;
-        stack_count += frame->tsp_num >= 0 ? frame->tsp_num : frame->tsp - frame->tsp_bottom;
+        uint32 vpos = frame->vpos;
         uint32 arity = frame->function->result_count;
 
-        dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
+        dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, vpos, arity);
         fprintf(fp, "\n");
 
         // fidxとip_ofsは前のフレームのものをdumpするため、ここで更新
@@ -439,17 +438,11 @@ int wasm_dump_frame_for_wasmedge(WASMModuleInstance *module, struct WASMInterpFr
         }
         else {
             uint32 locals = frame->function->param_count + frame->function->local_count;
-            uint32 tsp_num = frame->tsp_num >= 0 ? frame->tsp_num : frame->tsp - frame->tsp_bottom;
-            stack_count += locals + tsp_num;
-            printf("\n");
-            printf("ret fidx: %d\n", fidx);
-            printf("cur fidx: %d\n", frame->function - module->e->functions);
-            printf("tsp_addr: %p\n", frame->tsp);
-            printf("dump tsp num: %d\n", tsp_num);
+            uint32 vpos = frame->vpos;
             uint32 arity = frame->function->result_count;
 
             // debug_function_opcodes(module, prev_func, ip_ofs);
-            dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, stack_count, arity);
+            dump_frame_for_wasmedge(fp, mod_name, fidx, ip_ofs, locals, vpos, arity);
 
             // fidxとip_ofsは前のフレームのものをdumpするため、ここで更新
             prev_func = frame->function;
