@@ -80,16 +80,22 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
 
 // func_instの先頭からlimitまでのopcodeを出力する
 int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* func, uint32 limit) {
-    printf("fidx: %d\n", func - module->e->functions);
+    FILE *fp = fopen("wamr_opcode.log", "a");
+    if (fp == NULL) return -1;
+
+    fprintf(fp, "fidx: %d\n", func - module->e->functions);
     uint8 *ip = wasm_get_func_code(func);
     uint8 *ip_end = wasm_get_func_code_end(func);
     
     for (int i = 0; i < limit; i++) {
-        printf("%d) opcode: 0x%x\n", i+1, *ip);
+        fprintf(fp, "%d) opcode: 0x%x\n", i+1, *ip);
         ip = dispatch(ip, ip_end);
         if (ip >= ip_end)break;
     }
     printf("\n");
+
+    fclose(fp);
+    return 0;
 }
 
 // ipからip_limまでにopcodeがいくつかるかを返す
