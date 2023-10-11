@@ -983,12 +983,15 @@ wasm_interp_call_func_native(WASMModuleInstance *module_inst,
     if (cur_func->ret_cell_num == 1) {
         prev_frame->sp[0] = argv_ret[0];
         prev_frame->sp++;
+        prev_frame->tsp[0] = 0;
         prev_frame->tsp++;
     }
     else if (cur_func->ret_cell_num == 2) {
         prev_frame->sp[0] = argv_ret[0];
         prev_frame->sp[1] = argv_ret[1];
         prev_frame->sp += 2;
+        prev_frame->tsp[0] = 0;
+        prev_frame->tsp[1] = 0;
         prev_frame->tsp += 2;
     }
 
@@ -1131,10 +1134,23 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #endif /* WASM_ENABLE_DEBUG_INTERP */
 #endif /* WASM_ENABLE_THREAD_MGR */
 
+#define CHECK_DUMP()                                                        \
+    if (dispatch_count == dispatch_limit) {                                 \
+        sig_flag = true;                                                    \
+    }                                                                       \
+    if (sig_flag) {                                                         \
+        goto migration_async;                                               \
+    }
+
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
-#define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++];
+#define FETCH_OPCODE_AND_DISPATCH()                                     \
+do {                                                                    \
+    dispatch_count++;                                                   \
+    CHECK_DUMP()                                                        \
+    goto *handle_table[*frame_ip++];                                    \
+} while(0);
 
 #if WASM_ENABLE_THREAD_MGR != 0 && WASM_ENABLE_DEBUG_INTERP != 0
 #define HANDLE_OP_END()                                                   \
@@ -1172,13 +1188,8 @@ uint32 tsp_size, sp_size;
 #define CHECK_TYPE_STACK()
 #endif
 
-#define CHECK_DUMP()                                                        \
-    if (sig_flag) {                                                         \
-        goto migration_async;                                               \
-    }
 #define HANDLE_OP_END()                                                     \
     do {                                                                    \
-        CHECK_DUMP()                                                        \
         CHECK_TYPE_STACK()                                                  \
         FETCH_OPCODE_AND_DISPATCH()                                         \
     } while(0);
@@ -1264,6 +1275,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint32 cache_index, type_index, param_cell_num, cell_num;
     uint32 param_count, result_count;
     uint8 value_type;
+    uint32 dispatch_count = 0;
+    // uint32 dispatch_limit = 10000-20;
+    uint32 dispatch_limit = -1;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
 #if WASM_CONFIGUABLE_BOUNDS_CHECKS != 0
@@ -1580,7 +1594,7 @@ migration_async:
                     *prev_frame->sp++ = frame_sp[i];
                 }
                 for (i = 0; i < cur_func->result_count; i++) {
-                    *prev_frame->tsp++ = frame_sp[i];
+                    *prev_frame->tsp++ = frame_tsp[i];
                 }
                 goto return_func;
             }
@@ -3135,6 +3149,7 @@ migration_async:
                 DEF_OP_TRUNC_F32(-9223373136366403584.0f,
                                  9223372036854775808.0f, false, true);
                 frame_sp++;
+                frame_tsp++;
                 HANDLE_OP_END();
             }
 
@@ -3142,6 +3157,7 @@ migration_async:
             {
                 DEF_OP_TRUNC_F32(-1.0f, 18446744073709551616.0f, false, false);
                 frame_sp++;
+                frame_tsp++;
                 HANDLE_OP_END();
             }
 
@@ -4038,6 +4054,8 @@ migration_async:
         WASMInterpFrame *outs_area = wasm_exec_env_wasm_stack_top(exec_env);
         POP(cur_func->param_cell_num, cur_func->param_count);
         SYNC_ALL_TO_FRAME();
+        // printf("tsp_addr: %p\n", frame->tsp);
+        // printf("dump tsp num: %d\n", frame->tsp - frame->tsp_bottom);
         if (cur_func->param_cell_num > 0) {
             word_copy(outs_area->lp, frame_sp, cur_func->param_cell_num);
         }
@@ -4119,6 +4137,8 @@ migration_async:
                 (uint32 *)frame->csp_boundary;
             frame->tsp_boundary = 
                 frame->tsp_bottom + cur_wasm_func->max_stack_cell_num;
+            frame->vpos = prev_frame->vpos + (uint32)(prev_frame->tsp - prev_frame->tsp_bottom) 
+                        + cur_func->local_count + cur_func->param_count;
 
             /* Initialize the local variables */
             memset(frame_lp + cur_func->param_cell_num, 0,
@@ -4140,6 +4160,7 @@ migration_async:
 
     return_func:
     {
+        LOG_DEBUG("Exit func idx: %d\n",fidx);
         FREE_FRAME(exec_env, frame);
         wasm_exec_env_set_cur_frame(exec_env, prev_frame);
 
