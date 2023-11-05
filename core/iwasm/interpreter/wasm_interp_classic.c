@@ -1133,11 +1133,25 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
     } while (0)
 #endif /* WASM_ENABLE_DEBUG_INTERP */
 #endif /* WASM_ENABLE_THREAD_MGR */
+    
+        // uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(cur_func), frame_ip); \
+        // printf("fidx: %d\n", fidx);                                             \
+        // printf("code line: %d\n", ip_ofs);                                      \
+
+#if BH_DEBUG != 0
+#define DISPATCH_LIMIT()                                                        \
+    do {                                                                        \
+        if (dispatch_count == dispatch_limit) {                                 \
+            sig_flag = true;                                                    \
+        }                                                                       \
+    } while(0);
+#else
+#define DISPATCH_LIMIT() 
+#endif
+    
 
 #define CHECK_DUMP()                                                        \
-    if (dispatch_count == dispatch_limit) {                                 \
-        sig_flag = true;                                                    \
-    }                                                                       \
+    DISPATCH_LIMIT()                                                        \
     if (sig_flag) {                                                         \
         goto migration_async;                                               \
     }
@@ -1171,7 +1185,7 @@ do {                                                                    \
     } while (0)
 #else
 uint32 tsp_size, sp_size;
-#ifdef BH_DEBUG == 1
+#if BH_DEBUG != 0
 #define CHECK_TYPE_STACK()                                                  \
     LOG_VERBOSE("ip: 0x%x\n", *frame_ip);                                   \
     tsp_size = frame_tsp - frame->tsp_bottom;                               \
