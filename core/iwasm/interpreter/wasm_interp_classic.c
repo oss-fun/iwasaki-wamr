@@ -1179,6 +1179,9 @@ uint32 tsp_size, sp_size;
     if (sp_size < tsp_size                                                  \
         || (sp_size == 0 && tsp_size > 0)                                   \
         || (sp_size > 0 && tsp_size == 0)) {                                \
+       uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(cur_func), frame_ip); \
+       printf("fidx: %d\n", fidx);                                          \
+       printf("code line: %d\n", ip_ofs);                                   \
        printf("ip: 0x%x\n", *frame_ip);                                     \
        printf("frame_tsp size: %ld\n", frame_tsp-frame->tsp_bottom);        \
        printf("frame_sp size: %ld\n", frame_sp-frame->sp_bottom);           \
@@ -3119,7 +3122,6 @@ migration_async:
                   manually adjust it if src and dst op's cell num is
                   different */
                 frame_sp--;
-                frame_tsp--;
                 HANDLE_OP_END();
             }
 
@@ -3127,7 +3129,6 @@ migration_async:
             {
                 DEF_OP_TRUNC_F64(-1.0, 4294967296.0, true, false);
                 frame_sp--;
-                frame_tsp--;
                 HANDLE_OP_END();
             }
 
@@ -3149,7 +3150,6 @@ migration_async:
                 DEF_OP_TRUNC_F32(-9223373136366403584.0f,
                                  9223372036854775808.0f, false, true);
                 frame_sp++;
-                frame_tsp++;
                 HANDLE_OP_END();
             }
 
@@ -3157,7 +3157,6 @@ migration_async:
             {
                 DEF_OP_TRUNC_F32(-1.0f, 18446744073709551616.0f, false, false);
                 frame_sp++;
-                frame_tsp++;
                 HANDLE_OP_END();
             }
 
