@@ -520,9 +520,9 @@ int wasm_dump_for_wasmedge(
 static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
 {
-    FILE *fp, *fp2, *tsp_fp;
+    FILE *fp, *csp_tsp_fp, *tsp_fp;
     fp = fps[0];
-    fp2 = fps[1];
+    csp_tsp_fp = fps[1];
     tsp_fp = fps[2];
     if (fp == NULL) {
         perror("dump_WASMIntperFrame:fp is null\n");
@@ -640,20 +640,28 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
         // uint32 *frame_tsp;
         if (csp->frame_tsp == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint64), 1, fp2);
+            fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
         }
         else {
             addr = csp->frame_tsp - frame->tsp_bottom;
-            fwrite(&addr, sizeof(uint64), 1, fp2);
+            fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
         }
         
         // uint32 cell_num;
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
         // uint32 count;
-        fwrite(&csp->count, sizeof(uint32), 1, fp2);
+        fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
     }
 }
 
+FILE* open_image(const char* file) {
+    FILE *fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return NULL;
+    }
+    return fp;
+}
 
 int
 wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
@@ -662,27 +670,10 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         (WASMModuleInstance *)exec_env->module_inst;
     WASMFunctionInstance *function;
 
-    FILE *fp, *fp2, *tsp_fp;
-    const char *file = "frame.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-    const char *file2 = "ctrl_tsp.img";
-    fp2 = fopen(file2, "wb");
-    if (fp2 == NULL) {
-        fprintf(stderr, "failed to open %s\n", file2);
-        return -1;
-    }
-    const char *tsp_file = "type_stack.img";
-    tsp_fp = fopen(tsp_file, "wb");
-    if (tsp_fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", tsp_file);
-        return -1;
-    }
-
-    FILE *fps[3] = {fp, fp2, tsp_fp};
+    FILE *fp = open_image("frame.img");
+    FILE *csp_tsp_fp = open_image("ctrl_tsp.img");
+    FILE *tsp_fp = open_image("type_stack.img");
+    FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
 
     RevFrame *rf = init_rev_frame(frame);
     // frameをbottomからtopまで走査する
@@ -707,7 +698,7 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     } while(rf = rf->next);
 
     fclose(fp);
-    fclose(fp2);
+    fclose(csp_tsp_fp);
     fclose(tsp_fp);
     return 0;
 }
