@@ -704,19 +704,21 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 }
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *fp;
-    const char *file = "memory.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
+    FILE *memory_fp = open_image("memory.img");
+    FILE *mem_size_fp = open_image("mem_size.img");
 
     // WASMMemoryInstance *memory = module->default_memory;
     fwrite(memory->memory_data, sizeof(uint8),
-           memory->num_bytes_per_page * memory->cur_page_count, fp);
+           memory->num_bytes_per_page * memory->cur_page_count, memory_fp);
 
-    fclose(fp);
+    printf("mem_size1: %d\n", memory->memory_data_size);
+    printf("page_count: %d\n", memory->cur_page_count);
+    fwrite(&(memory->memory_data_size), sizeof(uint32), 1, mem_size_fp);
+    fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
+
+    fclose(memory_fp);
+    fclose(mem_size_fp);
+    printf("Success to dump memory\n");
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
@@ -793,6 +795,7 @@ int wasm_dump_addrs(
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     p_offset = maddr - memory->memory_data;
+    printf("maddr_ofs: %d\n", p_offset);
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     dump_value(&done_flag, sizeof(done_flag), 1, fp);

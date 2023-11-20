@@ -67,10 +67,13 @@ typedef float64 CellType_F64;
             goto out_of_bounds;                                  \
     } while (0)
 #else
-#define CHECK_MEMORY_OVERFLOW(bytes)                    \
-    do {                                                \
-        uint64 offset1 = (uint64)offset + (uint64)addr; \
-        maddr = memory->memory_data + offset1;          \
+#define CHECK_MEMORY_OVERFLOW(bytes)                             \
+    do {                                                         \
+        uint64 offset1 = (uint64)offset + (uint64)addr;          \
+        if (offset1 + bytes <= (uint64)get_linear_mem_size())    \
+            maddr = memory->memory_data + offset1;               \
+        else                                                     \
+            goto out_of_bounds;                                  \
     } while (0)
 
 #define CHECK_BULK_MEMORY_OVERFLOW(start, bytes, maddr) \
@@ -1352,7 +1355,13 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore\n");
             return;
         }
-        
+#if !defined(OS_ENABLE_HW_BOUND_CHECK)              \
+        || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0 \
+        || WASM_ENABLE_BULK_MEMORY != 0
+        linear_mem_size = memory ? memory->memory_data_size : 0;
+#endif
+        printf("restored mem_size: %d\n", (memory)->memory_data_size);
+
         rc = wasm_restore_tsp_addr(&frame_tsp, frame);
         if (rc < 0) {
             // error

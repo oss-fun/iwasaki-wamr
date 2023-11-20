@@ -295,17 +295,28 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
 }
 
 int wasm_restore_memory(WASMMemoryInstance **memory) {
-    const char *file = "memory.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
+    FILE* memory_fp = openImg("", "memory.img");
+    if (memory_fp == NULL) {
         perror("failed to openImg\n");
         return -1;
     }
 
+    FILE* mem_size_fp = openImg("", "mem_size.img");
+    if (mem_size_fp == NULL) {
+        perror("failed to openImg\n");
+        return -1;
+    }
     fread((*memory)->memory_data, sizeof(uint8),
-            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, fp);
+            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, memory_fp);
 
-    fclose(fp);
+    uint32 mem_size;
+    fread(&((*memory)->memory_data_size), sizeof(uint32), 1, mem_size_fp);
+    fread(&((*memory)->cur_page_count), sizeof(uint32), 1, mem_size_fp);
+    printf("restored mem_size: %d\n", (*memory)->memory_data_size);
+    printf("restored cur_page_count: %d\n", (*memory)->cur_page_count);
+
+    fclose(memory_fp);
+    fclose(mem_size_fp);
     return 0;
 }
 
@@ -401,6 +412,7 @@ int wasm_restore_addrs(
     *end_addr = wasm_get_func_code(func) + p_offset;
 
     fread(&p_offset, sizeof(uint32), 1, fp);
+    printf("maddr_ofs: %d\n", p_offset);
     *maddr = memory->memory_data + p_offset;
 
     fread(done_flag, sizeof(bool), 1, fp);

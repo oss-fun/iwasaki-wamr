@@ -149,6 +149,7 @@ GET_F64_FROM_ADDR(uint32 *addr)
 
 #define STORE_U32(addr, value)                    \
     do {                                          \
+        printf("STORE_U32 2\n");                  \
         uintptr_t addr_ = (uintptr_t)(addr);      \
         union {                                   \
             uint32 val;                           \
