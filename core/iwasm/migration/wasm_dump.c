@@ -518,8 +518,6 @@ int wasm_dump_for_wasmedge(
 
 /* wasm_dump for webassembly micro runtime */
 static void
-
-static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
 {
     FILE *fp, *fp2, *tsp_fp;
