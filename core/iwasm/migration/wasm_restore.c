@@ -198,7 +198,6 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
 
         // uint32 *frame_tsp
         fread(&addr, sizeof(uint64), 1, fp2);
-        printf("csp->frame_tsp: %d\n", addr);
         if (addr == -1) {
             csp->frame_tsp = NULL;
         }
@@ -208,10 +207,8 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
 
         // uint32 cell_num;
         fread(&csp->cell_num, sizeof(uint32), 1, fp);
-        printf("restore csp %d/%d\n", i, csp_num);
         // uint32 count;
         fread(&csp->count, sizeof(uint32), 1, fp2);
-        printf("csp->count: %d\n", csp->count);
     }
 }
 
@@ -234,24 +231,20 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     }
 
     // frameのcspのtsp
-    FILE *fp2;
-    const char *file = "ctrl_tsp.img";
-    fp2 = openImg("", file);
-    if (fp == NULL) {
+    FILE *csp_tsp_fp = openImg("", "ctrl_tsp.img");
+    if (csp_tsp_fp == NULL) {
         perror("failed to open frame.img\n");
         return NULL;
     }
 
     // frameのtype stack
-    char *tsp_file = "type_stack.img";
-    FILE *tsp_fp = openImg(img_dir, tsp_file);
+    FILE *tsp_fp = openImg("", "type_stack.img");
     if (tsp_fp == NULL) {
         perror("failed to open type_stack.img\n");
         return NULL;
     }
-    FILE *fps[3] = {fp, fp2, tsp_fp};
+    FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
 
-    int i = 0;
     while (!feof(fp)) {
         if ((fread(&func_idx, sizeof(uint32), 1, fp)) == 0) {
             break;
@@ -269,7 +262,6 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
             frame->sp = prev_frame->lp + 0;
         }
         else {
-            printf("restore frame %d\n", i);
             // 関数からスタックサイズを計算し,ALLOC
             function = module_inst->e->functions + func_idx;
             all_cell_num = (uint64)function->param_cell_num
@@ -284,27 +276,8 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
 
             // フレームをrestore
             frame->function = function;
-            printf("before restore WASMInterpFrame\n");
             restore_WASMInterpFrame(frame, exec_env, fps);
-            printf("restore WASMInterpFrame\n");
-            
-            
-            // 型スタックのrestore
-            // char tsp_file[30];
-            // snprintf(tsp_file, sizeof tsp_file, "type_stack%d.img", i);
-            // printf("%s\n", tsp_file);
-            // FILE *tsp_fp = openImg(img_dir, tsp_file);
-            // printf("Success to open tsp_file\n");
-            // if (tsp_fp == NULL) {
-            //     perror("failed to open type_stack.img\n");
-            //     return NULL;
-            // }
-            // restore_type_stack(frame, exec_env, tsp_fp);
-            // printf("restore type stack\n");
-            // fclose(tsp_fp);
-            // printf("close type_stack.img\n");
         }
-        i++;
         prev_frame = frame;
     }
     debug_wasm_interp_frame(frame, module_inst->e->functions);
@@ -313,7 +286,7 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     printf("Success to restore frame\n");
     wasm_exec_env_set_cur_frame(exec_env, frame);
     fclose(fp);
-    fclose(fp2);
+    fclose(csp_tsp_fp);
     fclose(tsp_fp);
     
     _exec_env = &exec_env;
@@ -444,16 +417,12 @@ int wasm_restore_tsp_addr(uint32 **frame_tsp, const WASMInterpFrame *frame)
         fprintf(stderr, "failed to open %s\n", file);
         return -1;
     }
-    printf("Success to open\n");
 
     uint32 p_offset;
     fread(&p_offset, sizeof(uint32), 1, fp);
-    printf("Success to read\n");
     *frame_tsp = frame->tsp_bottom + p_offset;
-    printf("Success to assign\n");
 
     fclose(fp);
-    printf("Success to close\n");
     return 0;
 }
 
