@@ -1161,7 +1161,6 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
-    printf("opcode: 0x%x\n", *frame_ip);                                \
     dispatch_count++;                                                   \
     CHECK_DUMP()                                                        \
     goto *handle_table[*frame_ip++];                                    \
