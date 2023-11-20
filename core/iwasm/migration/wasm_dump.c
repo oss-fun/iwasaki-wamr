@@ -518,6 +518,19 @@ int wasm_dump_for_wasmedge(
 
 /* wasm_dump for webassembly micro runtime */
 static void
+dump_type_stack(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp) 
+{
+    if (fp == NULL) {
+        perror("dump_type_stack:fp is null\n");
+        return;
+    }
+    uint32 tsp_offset = frame->tsp - frame->tsp_bottom;
+    fwrite(&tsp_offset, sizeof(uint32), 1, fp);
+    fwrite(frame->tsp_bottom, sizeof(uint32), tsp_offset, fp);
+}
+
+
+static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 {
     if (fp == NULL) {
@@ -649,6 +662,7 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     RevFrame *rf = init_rev_frame(frame);
     // frameをbottomからtopまで走査する
+    int i = 0;
     do {
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
@@ -666,7 +680,18 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
             uint32 func_idx = frame->function - module->e->functions;
             fwrite(&func_idx, sizeof(uint32), 1, fp);
             dump_WASMInterpFrame(frame, exec_env, fp);
+
+            char tsp_file[30];
+            snprintf(tsp_file, sizeof tsp_file, "type_stack%d.img", i);
+            FILE *tsp_fp = fopen(tsp_file, "wb");
+            if (tsp_fp == NULL) {
+                fprintf(stderr, "failed to open %s\n", file);
+                return -1;
+            }
+            dump_type_stack(frame, exec_env, tsp_fp);
+            fclose(tsp_fp);
         }
+        i++;
     } while(rf = rf->next);
 
     fclose(fp);
