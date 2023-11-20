@@ -1899,29 +1899,12 @@ migration_async:
 
             HANDLE_OP(EXT_OP_GET_LOCAL_FAST)
             {
-                printf("LOCAL_GET_FAST\n");
                 local_offset = *frame_ip++;
-                if (local_offset & 0x80) {
-                    printf("PUSH I64\n");
+                if (local_offset & 0x80)
                     PUSH_I64(
                         GET_I64_FROM_ADDR(frame_lp + (local_offset & 0x7F)));
-                }
-                else {
-                    printf("PUSH I32\n");
-                    // PUSH_I32(*(int32 *)(frame_lp + local_offset));
-                    int32 value = *(int32 *)(frame_lp + local_offset);
-                    printf("access local: %d\n", value);
-
-                    *(int32 *)frame_sp++ = (int32)(value); 
-                    printf("sp_count: %d\n", frame_sp - frame->sp_bottom);
-                    printf("sp_bound: %d\n", frame->sp_boundary - frame->sp_bottom);
-                    printf("push sp\n");
-                    printf("tsp_count: %d\n", frame_tsp - frame->tsp_bottom);
-                    printf("tsp_bound: %d\n", frame->tsp_boundary - frame->tsp_bottom);
-                    *(int32 *)frame_tsp++ = (int32)(0); 
-                    printf("push tsp\n");
-                }
-                printf("END LOCAL_GET_FAST\n");
+                else
+                    PUSH_I32(*(int32 *)(frame_lp + local_offset));
                 HANDLE_OP_END();
             }
 
