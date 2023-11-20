@@ -1161,6 +1161,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
+    printf("opcode: 0x%x\n", *frame_ip);                                \
     dispatch_count++;                                                   \
     CHECK_DUMP()                                                        \
     goto *handle_table[*frame_ip++];                                    \
@@ -1352,6 +1353,14 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore\n");
             return;
         }
+        
+        rc = wasm_restore_tsp_addr(&frame_tsp, frame);
+        if (rc < 0) {
+            // error
+            perror("failed to restore_tsp\n");
+            return;
+        }
+        printf("Success to restore tsp_addrs\n");
 
         UPDATE_ALL_FROM_FRAME();
         // if (!done_flag) {
@@ -1392,6 +1401,12 @@ migration_async:
             frame_ip_end, else_addr, end_addr, maddr, done_flag);
         if (rc < 0) {
             perror("failed to dump\n");
+            exit(1);
+        }
+        
+        rc = wasm_dump_tsp_addr(frame_tsp, frame);
+        if (rc < 0) {
+            perror("failed to dump_tsp_addr\n");
             exit(1);
         }
         exit(0);     
@@ -1561,7 +1576,40 @@ migration_async:
 #endif
                 read_leb_uint32(frame_ip, frame_ip_end, depth);
             label_pop_csp_n:
-                POP_CSP_N(depth);
+                printf("before pop_csp sp_count: %d\n", frame_sp - frame->sp_bottom);
+                printf("before pop_csp tsp_count: %d\n", frame_tsp - frame->tsp_bottom);
+                // POP_CSP_N(depth);
+
+                int n = depth;
+                do {                                                         \
+                    uint32 *frame_sp_old = frame_sp;                         \
+                    uint32 *frame_tsp_old = frame_tsp;                       \
+                    uint32 cell_num_to_copy, count_to_copy;                  \
+                    POP_CSP_CHECK_OVERFLOW(n + 1);                           \
+                    frame_csp -= n;                                          \
+                    frame_ip = (frame_csp - 1)->target_addr;                 \
+                    /* copy arity values of block */                         \
+                    frame_sp = (frame_csp - 1)->frame_sp;                    \
+                    cell_num_to_copy = (frame_csp - 1)->cell_num;            \
+                    if (cell_num_to_copy > 0) {                              \
+                        word_copy(frame_sp, frame_sp_old - cell_num_to_copy, \
+                                  cell_num_to_copy);                         \
+                    }                                                        \
+                    frame_tsp = (frame_csp - 1)->frame_tsp;                  \
+                    count_to_copy = (frame_csp - 1)->count;                  \
+                    printf("count_to_copy: %d\n", count_to_copy);
+                    if (count_to_copy > 0) {                                 \
+                        word_copy(frame_tsp, frame_tsp_old - count_to_copy,  \
+                                  count_to_copy);                            \
+                    }                                                        \
+                    frame_sp += cell_num_to_copy;                            \
+                    frame_tsp += count_to_copy;                              \
+                    bh_assert((int32)(frame_sp-frame->sp_bottom              \
+                            ==(int32)(frame_tsp-frame->tsp_bottom)));        \
+                } while (0);
+                printf("after pop_csp sp_count: %d\n", frame_sp - frame->sp_bottom);
+                printf("after pop_csp tsp_count: %d\n", frame_tsp - frame->tsp_bottom);
+                
                 if (!frame_ip) { /* must be label pushed by WASM_OP_BLOCK */
                     if (!wasm_loader_find_block_addr(
                             exec_env, (BlockAddr *)exec_env->block_addr_cache,
@@ -1885,12 +1933,29 @@ migration_async:
 
             HANDLE_OP(EXT_OP_GET_LOCAL_FAST)
             {
+                printf("LOCAL_GET_FAST\n");
                 local_offset = *frame_ip++;
-                if (local_offset & 0x80)
+                if (local_offset & 0x80) {
+                    printf("PUSH I64\n");
                     PUSH_I64(
                         GET_I64_FROM_ADDR(frame_lp + (local_offset & 0x7F)));
-                else
-                    PUSH_I32(*(int32 *)(frame_lp + local_offset));
+                }
+                else {
+                    printf("PUSH I32\n");
+                    // PUSH_I32(*(int32 *)(frame_lp + local_offset));
+                    int32 value = *(int32 *)(frame_lp + local_offset);
+                    printf("access local: %d\n", value);
+
+                    *(int32 *)frame_sp++ = (int32)(value); 
+                    printf("sp_count: %d\n", frame_sp - frame->sp_bottom);
+                    printf("sp_bound: %d\n", frame->sp_boundary - frame->sp_bottom);
+                    printf("push sp\n");
+                    printf("tsp_count: %d\n", frame_tsp - frame->tsp_bottom);
+                    printf("tsp_bound: %d\n", frame->tsp_boundary - frame->tsp_bottom);
+                    *(int32 *)frame_tsp++ = (int32)(0); 
+                    printf("push tsp\n");
+                }
+                printf("END LOCAL_GET_FAST\n");
                 HANDLE_OP_END();
             }
 

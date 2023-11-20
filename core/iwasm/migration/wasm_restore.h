@@ -42,4 +42,6 @@ int wasm_restore(WASMModuleInstance **module,
             uint8 **end_addr,
             uint8 **maddr,
             bool *done_flag);
+
+int wasm_restore_tsp_addr(uint32 **frame_tsp, const WASMInterpFrame *frame);
 #endif // _WASM_RESTORE_H

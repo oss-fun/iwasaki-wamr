@@ -531,8 +531,12 @@ dump_type_stack(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
 
 
 static void
-dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp)
+dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
 {
+    FILE *fp, *fp2, *tsp_fp;
+    fp = fps[0];
+    fp2 = fps[1];
+    tsp_fp = fps[2];
     if (fp == NULL) {
         perror("dump_WASMIntperFrame:fp is null\n");
         return;
@@ -557,6 +561,12 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
     // WASMBranchBlock *csp;
     uint32 csp_offset = frame->csp - frame->csp_bottom;
     fwrite(&csp_offset, sizeof(uint32), 1, fp);
+
+    // uint32 *tsp_bottom;
+    // uint32 *tsp_boundary;
+    // uint32 *tsp;
+    uint32 tsp_offset = frame->tsp - frame->tsp_bottom;
+    fwrite(&tsp_offset, sizeof(uint32), 1, tsp_fp);
 
     // uint32 lp[1];
     WASMFunctionInstance *func = frame->function;
@@ -602,14 +612,15 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
     }
 
     fwrite(frame->sp_bottom, sizeof(uint32), sp_offset, fp);
+    fwrite(frame->tsp_bottom, sizeof(uint32), tsp_offset, tsp_fp);
 
     WASMBranchBlock *csp = frame->csp_bottom;
     uint32 csp_num = frame->csp - frame->csp_bottom;
     
 
+    uint64 addr;
     for (i = 0; i < csp_num; i++, csp++) {
         // uint8 *begin_addr;
-        uint64 addr;
         if (csp->begin_addr == NULL) {
             addr = -1;
             fwrite(&addr, sizeof(uint64), 1, fp);
@@ -639,8 +650,20 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
             fwrite(&addr, sizeof(uint64), 1, fp);
         }
 
+        // uint32 *frame_tsp;
+        if (csp->frame_tsp == NULL) {
+            addr = -1;
+            fwrite(&addr, sizeof(uint64), 1, fp2);
+        }
+        else {
+            addr = csp->frame_tsp - frame->tsp_bottom;
+            fwrite(&addr, sizeof(uint64), 1, fp2);
+        }
+        
         // uint32 cell_num;
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+        // uint32 count;
+        fwrite(&csp->count, sizeof(uint32), 1, fp2);
     }
 }
 
@@ -652,17 +675,30 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         (WASMModuleInstance *)exec_env->module_inst;
     WASMFunctionInstance *function;
 
-    FILE *fp;
+    FILE *fp, *fp2, *tsp_fp;
     const char *file = "frame.img";
     fp = fopen(file, "wb");
     if (fp == NULL) {
         fprintf(stderr, "failed to open %s\n", file);
         return -1;
     }
+    const char *file2 = "ctrl_tsp.img";
+    fp2 = fopen(file2, "wb");
+    if (fp2 == NULL) {
+        fprintf(stderr, "failed to open %s\n", file2);
+        return -1;
+    }
+    const char *tsp_file = "type_stack.img";
+    tsp_fp = fopen(tsp_file, "wb");
+    if (tsp_fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", tsp_file);
+        return -1;
+    }
+
+    FILE *fps[3] = {fp, fp2, tsp_fp};
 
     RevFrame *rf = init_rev_frame(frame);
     // frameをbottomからtopまで走査する
-    int i = 0;
     do {
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
@@ -679,22 +715,13 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         else {
             uint32 func_idx = frame->function - module->e->functions;
             fwrite(&func_idx, sizeof(uint32), 1, fp);
-            dump_WASMInterpFrame(frame, exec_env, fp);
-
-            char tsp_file[30];
-            snprintf(tsp_file, sizeof tsp_file, "type_stack%d.img", i);
-            FILE *tsp_fp = fopen(tsp_file, "wb");
-            if (tsp_fp == NULL) {
-                fprintf(stderr, "failed to open %s\n", file);
-                return -1;
-            }
-            dump_type_stack(frame, exec_env, tsp_fp);
-            fclose(tsp_fp);
+            dump_WASMInterpFrame(frame, exec_env, fps);
         }
-        i++;
     } while(rf = rf->next);
 
     fclose(fp);
+    fclose(fp2);
+    fclose(tsp_fp);
     return 0;
 }
 
@@ -791,6 +818,23 @@ int wasm_dump_addrs(
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     dump_value(&done_flag, sizeof(done_flag), 1, fp);
+
+    fclose(fp);
+    return 0;
+}
+
+int wasm_dump_tsp_addr(uint32 *frame_tsp, struct WASMInterpFrame *frame)
+{
+    FILE *fp;
+    const char *file = "tsp_addr.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    uint32_t p_offset = frame_tsp - frame->tsp_bottom;
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     fclose(fp);
     return 0;
