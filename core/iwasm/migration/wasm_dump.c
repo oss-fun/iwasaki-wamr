@@ -518,17 +518,6 @@ int wasm_dump_for_wasmedge(
 
 /* wasm_dump for webassembly micro runtime */
 static void
-dump_type_stack(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fp) 
-{
-    if (fp == NULL) {
-        perror("dump_type_stack:fp is null\n");
-        return;
-    }
-    uint32 tsp_offset = frame->tsp - frame->tsp_bottom;
-    fwrite(&tsp_offset, sizeof(uint32), 1, fp);
-    fwrite(frame->tsp_bottom, sizeof(uint32), tsp_offset, fp);
-}
-
 
 static void
 dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
