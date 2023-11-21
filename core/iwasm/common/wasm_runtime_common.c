@@ -187,6 +187,7 @@ runtime_signal_handler(void *sig_addr)
     uint32 guard_page_count = STACK_OVERFLOW_CHECK_GUARD_PAGE_COUNT;
 #endif
 
+    printf("signal_runtime\n");
     /* Check whether current thread is running wasm function */
     if (exec_env_tls && exec_env_tls->handle == os_self_thread()
         && (jmpbuf_node = exec_env_tls->jmpbuf_stack_top)) {
@@ -204,11 +205,18 @@ runtime_signal_handler(void *sig_addr)
         stack_min_addr = os_thread_get_stack_boundary();
 #endif
 
+        printf("is memory_inst: %s\n", memory_inst ? "true" : "false");
+        printf("mem_start_addr <= sig_addr: %s\n", mapped_mem_start_addr <= (uint8 *)sig_addr ? "true" : "false");
+        printf("sig_addr < mem_end_addr: %s\n", (uint8 *)sig_addr < mapped_mem_end_addr ? "true" : "false");
         if (memory_inst
             && (mapped_mem_start_addr <= (uint8 *)sig_addr
                 && (uint8 *)sig_addr < mapped_mem_end_addr)) {
             /* The address which causes segmentation fault is inside
                the memory instance's guard regions */
+            printf("mapped_mem_start_addr: %ld\n", mapped_mem_start_addr);
+            printf("maddr: %ld\n", (uint8 *)sig_addr);
+            printf("mapped_mem_end_addr: %ld\n", mapped_mem_end_addr);
+            printf("runtime_common1\n");
             wasm_set_exception(module_inst, "out of bounds memory access");
             os_longjmp(jmpbuf_node->jmpbuf, 1);
         }
@@ -346,6 +354,7 @@ runtime_exception_handler(EXCEPTION_POINTERS *exce_info)
                    Set exception and let the wasm func continue to run, when
                    the wasm func returns, the caller will check whether the
                    exception is thrown and return to runtime. */
+                printf("runtime_common2\n");
                 wasm_set_exception(module_inst, "out of bounds memory access");
                 ret = next_action(module_inst, exce_info);
                 if (ret == EXCEPTION_CONTINUE_SEARCH
@@ -389,6 +398,7 @@ static bool
 runtime_signal_init()
 {
 #ifndef BH_PLATFORM_WINDOWS
+    printf("runtime_signal_handler\n");
     return os_thread_signal_init(runtime_signal_handler) == 0 ? true : false;
 #else
     if (os_thread_signal_init() != 0)
@@ -457,6 +467,7 @@ wasm_runtime_env_init()
 #endif
 
 #ifdef OS_ENABLE_HW_BOUND_CHECK
+    printf("runtime_signal_init\n");
     if (!runtime_signal_init()) {
         goto fail6;
     }

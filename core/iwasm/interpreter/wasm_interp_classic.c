@@ -1161,6 +1161,8 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
+// printf("opcode: 0x%x\n", *frame_ip);                                \
+
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
