@@ -294,7 +294,7 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     return frame;
 }
 
-int wasm_restore_memory(WASMMemoryInstance **memory) {
+int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory) {
     FILE* memory_fp = openImg("", "memory.img");
     if (memory_fp == NULL) {
         perror("failed to openImg\n");
@@ -306,14 +306,18 @@ int wasm_restore_memory(WASMMemoryInstance **memory) {
         perror("failed to openImg\n");
         return -1;
     }
-    fread((*memory)->memory_data, sizeof(uint8),
-            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, memory_fp);
+    uint32 page_count;
+    fread(&page_count, sizeof(uint32), 1, mem_size_fp);
+    wasm_enlarge_memory(module, page_count- (*memory)->cur_page_count);
 
     uint32 mem_size;
-    fread(&((*memory)->memory_data_size), sizeof(uint32), 1, mem_size_fp);
-    fread(&((*memory)->cur_page_count), sizeof(uint32), 1, mem_size_fp);
+    fread(&mem_size, sizeof(uint32), 1, mem_size_fp);
     printf("restored mem_size: %d\n", (*memory)->memory_data_size);
     printf("restored cur_page_count: %d\n", (*memory)->cur_page_count);
+
+    // restore memory_data
+    fread((*memory)->memory_data, sizeof(uint8),
+            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, memory_fp);
 
     fclose(memory_fp);
     fclose(mem_size_fp);
@@ -458,7 +462,7 @@ int wasm_restore(WASMModuleInstance **module,
             bool *done_flag) 
 {
     // restore memory
-    wasm_restore_memory(memory);
+    wasm_restore_memory(*module, memory);
     printf("Success to restore linear memory\n");
 
     // restore globals

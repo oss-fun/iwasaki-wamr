@@ -1161,7 +1161,8 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
-// printf("opcode: 0x%x\n", *frame_ip);                                \
+
+    // printf("opcode: 0x%x\n", *frame_ip);                                \
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
@@ -1298,8 +1299,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint32 param_count, result_count;
     uint8 value_type;
     uint32 dispatch_count = 0;
-    // uint32 dispatch_limit = 10000-20;
-    uint32 dispatch_limit = -1;
+    uint32 dispatch_limit = 2739891-1408918;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
 #if WASM_CONFIGUABLE_BOUNDS_CHECKS != 0
@@ -1328,6 +1328,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     signal(SIGINT, &wasm_interp_sigint);
 
     if (get_restore_flag()) {
+
         // bool done_flag;
         int rc;
         frame = wasm_restore_frame(&exec_env);
@@ -1373,22 +1374,17 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         printf("Success to restore tsp_addrs\n");
 
         UPDATE_ALL_FROM_FRAME();
-        // if (!done_flag) {
-        //     // TODO: I haven't understood the think of this line developer.
-        //     printf("goto hanele_op_call\n");
-        //     goto handle_op_call;
-        // }
         // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
         if (0) {
             SYNC_ALL_TO_FRAME();
-            int rc = wasm_dump(exec_env, module, memory, 
-                globals, global_data, global_addr, cur_func,
-                frame, frame_ip, frame_sp, frame_csp,
-                frame_ip_end, else_addr, end_addr, maddr, done_flag);
-            if (rc < 0) {
-                perror("failed to dump\n");
-                exit(1);
-            }
+            // int rc = wasm_dump(exec_env, module, memory, 
+            //     globals, global_data, global_addr, cur_func,
+            //     frame, frame_ip, frame_sp, frame_csp,
+            //     frame_ip_end, else_addr, end_addr, maddr, done_flag);
+            // if (rc < 0) {
+            //     perror("failed to dump\n");
+            //     exit(1);
+            // }
         }
         FETCH_OPCODE_AND_DISPATCH();
     }
@@ -1407,18 +1403,13 @@ migration_async:
         SYNC_ALL_TO_FRAME();
         int rc = wasm_dump(exec_env, module, memory, 
             globals, global_data, global_addr, cur_func,
-            frame, frame_ip, frame_sp, frame_csp,
+            frame, frame_ip, frame_sp, frame_csp, frame_tsp,
             frame_ip_end, else_addr, end_addr, maddr, done_flag);
         if (rc < 0) {
             perror("failed to dump\n");
             exit(1);
         }
-        
-        rc = wasm_dump_tsp_addr(frame_tsp, frame);
-        if (rc < 0) {
-            perror("failed to dump_tsp_addr\n");
-            exit(1);
-        }
+        printf("dispatch_count: %d\n", dispatch_count);
         exit(0);     
     }
     FETCH_OPCODE_AND_DISPATCH();
@@ -2248,16 +2239,27 @@ migration_async:
             {
                 uint32 offset, flags, addr;
 
+                printf("ENTER I32_STORE\n");
+                printf("dispatch_count: %d\n", dispatch_count);
                 read_leb_uint32(frame_ip, frame_ip_end, flags);
                 read_leb_uint32(frame_ip, frame_ip_end, offset);
                 frame_sp--;
                 frame_tsp--;
                 addr = POP_I32();
+                
+                printf("addr: %d\n", addr);
+                printf("offset: %d\n", offset);
+                printf("linear_mem_size: %d\n", get_linear_mem_size());
+
+                // printf("I32_STORE 1\n");
                 CHECK_MEMORY_OVERFLOW(4);
-                printf("b STORE\n");
+                // printf("I32_STORE 2\n");
                 STORE_U32(maddr, frame_sp[1]);
-                printf("a STORE\n");
+                // printf("I32_STORE 3\n");
                 CHECK_WRITE_WATCHPOINT(addr, offset);
+                // printf("I32_STORE 4\n");
+                printf("\n");     
+            
                 (void)flags;
                 HANDLE_OP_END();
             }
