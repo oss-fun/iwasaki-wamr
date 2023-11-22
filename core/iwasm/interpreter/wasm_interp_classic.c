@@ -2222,7 +2222,6 @@ migration_async:
                 CHECK_MEMORY_OVERFLOW(4);
                 STORE_U32(maddr, frame_sp[1]);
                 CHECK_WRITE_WATCHPOINT(addr, offset);
-            
                 (void)flags;
                 HANDLE_OP_END();
             }
@@ -2241,7 +2240,6 @@ migration_async:
                 PUT_I64_TO_ADDR((uint32 *)maddr,
                                 GET_I64_FROM_ADDR(frame_sp + 1));
                 CHECK_WRITE_WATCHPOINT(addr, offset);
-
                 (void)flags;
                 HANDLE_OP_END();
             }
