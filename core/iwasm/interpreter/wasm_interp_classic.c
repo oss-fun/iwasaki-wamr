@@ -67,13 +67,10 @@ typedef float64 CellType_F64;
             goto out_of_bounds;                                  \
     } while (0)
 #else
-#define CHECK_MEMORY_OVERFLOW(bytes)                             \
-    do {                                                         \
-        uint64 offset1 = (uint64)offset + (uint64)addr;          \
-        if (offset1 + bytes <= (uint64)get_linear_mem_size())    \
-            maddr = memory->memory_data + offset1;               \
-        else                                                     \
-            goto out_of_bounds;                                  \
+#define CHECK_MEMORY_OVERFLOW(bytes)                    \
+    do {                                                \
+        uint64 offset1 = (uint64)offset + (uint64)addr; \
+        maddr = memory->memory_data + offset1;          \
     } while (0)
 
 #define CHECK_BULK_MEMORY_OVERFLOW(start, bytes, maddr) \
@@ -1358,12 +1355,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore\n");
             return;
         }
-#if !defined(OS_ENABLE_HW_BOUND_CHECK)              \
-        || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0 \
-        || WASM_ENABLE_BULK_MEMORY != 0
         linear_mem_size = memory ? memory->memory_data_size : 0;
-#endif
-        printf("restored mem_size: %d\n", (memory)->memory_data_size);
+        LOG_DEBUG("restored mem_size: %d\n", (memory)->memory_data_size);
 
         rc = wasm_restore_tsp_addr(&frame_tsp, frame);
         if (rc < 0) {
@@ -1371,7 +1364,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore_tsp\n");
             return;
         }
-        printf("Success to restore tsp_addrs\n");
+        LOG_DEBUG("Success to restore tsp_addrs\n");
 
         UPDATE_ALL_FROM_FRAME();
         // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
@@ -1409,7 +1402,7 @@ migration_async:
             perror("failed to dump\n");
             exit(1);
         }
-        printf("dispatch_count: %d\n", dispatch_count);
+        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
         exit(0);     
     }
     FETCH_OPCODE_AND_DISPATCH();
@@ -2239,26 +2232,14 @@ migration_async:
             {
                 uint32 offset, flags, addr;
 
-                printf("ENTER I32_STORE\n");
-                printf("dispatch_count: %d\n", dispatch_count);
                 read_leb_uint32(frame_ip, frame_ip_end, flags);
                 read_leb_uint32(frame_ip, frame_ip_end, offset);
                 frame_sp--;
                 frame_tsp--;
                 addr = POP_I32();
-                
-                printf("addr: %d\n", addr);
-                printf("offset: %d\n", offset);
-                printf("linear_mem_size: %d\n", get_linear_mem_size());
-
-                // printf("I32_STORE 1\n");
                 CHECK_MEMORY_OVERFLOW(4);
-                // printf("I32_STORE 2\n");
                 STORE_U32(maddr, frame_sp[1]);
-                // printf("I32_STORE 3\n");
                 CHECK_WRITE_WATCHPOINT(addr, offset);
-                // printf("I32_STORE 4\n");
-                printf("\n");     
             
                 (void)flags;
                 HANDLE_OP_END();
