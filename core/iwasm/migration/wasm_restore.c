@@ -306,14 +306,21 @@ int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory)
         perror("failed to openImg\n");
         return -1;
     }
+    // restore mem_size
+    uint32 mem_size;
+    fread(&mem_size, sizeof(uint32), 1, mem_size_fp);
+
+    // restore page_count
     uint32 page_count;
     fread(&page_count, sizeof(uint32), 1, mem_size_fp);
     wasm_enlarge_memory(module, page_count- (*memory)->cur_page_count);
 
-    uint32 mem_size;
-    fread(&mem_size, sizeof(uint32), 1, mem_size_fp);
-    printf("restored mem_size: %d\n", (*memory)->memory_data_size);
-    printf("restored cur_page_count: %d\n", (*memory)->cur_page_count);
+    printf("\n");
+    printf("ideal cur_page_count: %d\n", page_count);
+    printf("ideal mem_size: %d\n", mem_size);
+    printf("real cur_page_count: %d\n", (*memory)->cur_page_count);
+    printf("real mem_size: %d\n", (*memory)->memory_data_size);
+    printf("\n");
 
     // restore memory_data
     fread((*memory)->memory_data, sizeof(uint8),
