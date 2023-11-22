@@ -213,9 +213,6 @@ runtime_signal_handler(void *sig_addr)
                 && (uint8 *)sig_addr < mapped_mem_end_addr)) {
             /* The address which causes segmentation fault is inside
                the memory instance's guard regions */
-            printf("mapped_mem_start_addr: %ld\n", mapped_mem_start_addr);
-            printf("maddr: %ld\n", (uint8 *)sig_addr);
-            printf("mapped_mem_end_addr: %ld\n", mapped_mem_end_addr);
             printf("runtime_common1\n");
             wasm_set_exception(module_inst, "out of bounds memory access");
             os_longjmp(jmpbuf_node->jmpbuf, 1);

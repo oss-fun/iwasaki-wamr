@@ -2254,7 +2254,9 @@ migration_async:
                 frame_tsp--;
                 addr = POP_I32();
                 CHECK_MEMORY_OVERFLOW(4);
+                printf("b STORE\n");
                 STORE_U32(maddr, frame_sp[1]);
+                printf("a STORE\n");
                 CHECK_WRITE_WATCHPOINT(addr, offset);
                 (void)flags;
                 HANDLE_OP_END();
