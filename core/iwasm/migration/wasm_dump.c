@@ -792,7 +792,6 @@ int wasm_dump_addrs(
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     p_offset = maddr - memory->memory_data;
-    printf("maddr_ofs: %d\n", p_offset);
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     dump_value(&done_flag, sizeof(done_flag), 1, fp);

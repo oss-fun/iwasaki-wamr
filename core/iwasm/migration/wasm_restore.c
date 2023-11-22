@@ -412,7 +412,6 @@ int wasm_restore_addrs(
     *end_addr = wasm_get_func_code(func) + p_offset;
 
     fread(&p_offset, sizeof(uint32), 1, fp);
-    printf("maddr_ofs: %d\n", p_offset);
     *maddr = memory->memory_data + p_offset;
 
     fread(done_flag, sizeof(bool), 1, fp);

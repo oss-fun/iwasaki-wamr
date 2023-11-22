@@ -1158,9 +1158,6 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
-
-    // printf("opcode: 0x%x\n", *frame_ip);                                \
-
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
@@ -1325,7 +1322,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     signal(SIGINT, &wasm_interp_sigint);
 
     if (get_restore_flag()) {
-
         // bool done_flag;
         int rc;
         frame = wasm_restore_frame(&exec_env);
@@ -1356,7 +1352,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             return;
         }
         linear_mem_size = memory ? memory->memory_data_size : 0;
-        LOG_DEBUG("restored mem_size: %d\n", (memory)->memory_data_size);
 
         rc = wasm_restore_tsp_addr(&frame_tsp, frame);
         if (rc < 0) {
@@ -1364,21 +1359,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore_tsp\n");
             return;
         }
-        LOG_DEBUG("Success to restore tsp_addrs\n");
 
         UPDATE_ALL_FROM_FRAME();
-        // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
-        if (0) {
-            SYNC_ALL_TO_FRAME();
-            // int rc = wasm_dump(exec_env, module, memory, 
-            //     globals, global_data, global_addr, cur_func,
-            //     frame, frame_ip, frame_sp, frame_csp,
-            //     frame_ip_end, else_addr, end_addr, maddr, done_flag);
-            // if (rc < 0) {
-            //     perror("failed to dump\n");
-            //     exit(1);
-            // }
-        }
         FETCH_OPCODE_AND_DISPATCH();
     }
 
@@ -2259,6 +2241,7 @@ migration_async:
                 PUT_I64_TO_ADDR((uint32 *)maddr,
                                 GET_I64_FROM_ADDR(frame_sp + 1));
                 CHECK_WRITE_WATCHPOINT(addr, offset);
+
                 (void)flags;
                 HANDLE_OP_END();
             }
