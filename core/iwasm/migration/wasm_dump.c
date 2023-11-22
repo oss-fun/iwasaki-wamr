@@ -704,19 +704,18 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 }
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *fp;
-    const char *file = "memory.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
+    FILE *memory_fp = open_image("memory.img");
+    FILE *mem_size_fp = open_image("mem_page_count.img");
 
     // WASMMemoryInstance *memory = module->default_memory;
     fwrite(memory->memory_data, sizeof(uint8),
-           memory->num_bytes_per_page * memory->cur_page_count, fp);
+           memory->num_bytes_per_page * memory->cur_page_count, memory_fp);
 
-    fclose(fp);
+    printf("page_count: %d\n", memory->cur_page_count);
+    fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
+
+    fclose(memory_fp);
+    fclose(mem_size_fp);
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
@@ -829,11 +828,12 @@ int wasm_dump(WASMExecEnv *exec_env,
          register uint8 *frame_ip,
          register uint32 *frame_sp,
          WASMBranchBlock *frame_csp,
+         uint32 *frame_tsp,
          uint8 *frame_ip_end,
          uint8 *else_addr,
          uint8 *end_addr,
          uint8 *maddr,
-         bool done_flag) 
+         bool done_flag)
 {
     int rc;
     rc = wasm_dump_for_wasmedge(
@@ -866,6 +866,13 @@ int wasm_dump(WASMExecEnv *exec_env,
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;
+    }
+
+    // dump tsp addrs
+    rc = wasm_dump_tsp_addr(frame_tsp, frame);
+    if (rc < 0) {
+        perror("failed to dump_tsp_addr\n");
+        exit(1);
     }
 
     // dump addrs

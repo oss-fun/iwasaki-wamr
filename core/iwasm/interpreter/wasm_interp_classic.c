@@ -1293,7 +1293,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint32 param_count, result_count;
     uint8 value_type;
     uint32 dispatch_count = 0;
-    // uint32 dispatch_limit = 10000-20;
     uint32 dispatch_limit = -1;
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
@@ -1352,33 +1351,16 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore\n");
             return;
         }
-        
+        linear_mem_size = memory ? memory->memory_data_size : 0;
+
         rc = wasm_restore_tsp_addr(&frame_tsp, frame);
         if (rc < 0) {
             // error
             perror("failed to restore_tsp\n");
             return;
         }
-        printf("Success to restore tsp_addrs\n");
 
         UPDATE_ALL_FROM_FRAME();
-        // if (!done_flag) {
-        //     // TODO: I haven't understood the think of this line developer.
-        //     printf("goto hanele_op_call\n");
-        //     goto handle_op_call;
-        // }
-        // restoreしたものがもとのdumpファイルと一致しているかを確かめる処理
-        if (0) {
-            SYNC_ALL_TO_FRAME();
-            int rc = wasm_dump(exec_env, module, memory, 
-                globals, global_data, global_addr, cur_func,
-                frame, frame_ip, frame_sp, frame_csp,
-                frame_ip_end, else_addr, end_addr, maddr, done_flag);
-            if (rc < 0) {
-                perror("failed to dump\n");
-                exit(1);
-            }
-        }
         FETCH_OPCODE_AND_DISPATCH();
     }
 
@@ -1396,18 +1378,13 @@ migration_async:
         SYNC_ALL_TO_FRAME();
         int rc = wasm_dump(exec_env, module, memory, 
             globals, global_data, global_addr, cur_func,
-            frame, frame_ip, frame_sp, frame_csp,
+            frame, frame_ip, frame_sp, frame_csp, frame_tsp,
             frame_ip_end, else_addr, end_addr, maddr, done_flag);
         if (rc < 0) {
             perror("failed to dump\n");
             exit(1);
         }
-        
-        rc = wasm_dump_tsp_addr(frame_tsp, frame);
-        if (rc < 0) {
-            perror("failed to dump_tsp_addr\n");
-            exit(1);
-        }
+        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
         exit(0);     
     }
     FETCH_OPCODE_AND_DISPATCH();

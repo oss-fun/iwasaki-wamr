@@ -294,18 +294,29 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     return frame;
 }
 
-int wasm_restore_memory(WASMMemoryInstance **memory) {
-    const char *file = "memory.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
+int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory) {
+    FILE* memory_fp = openImg("", "memory.img");
+    if (memory_fp == NULL) {
         perror("failed to openImg\n");
         return -1;
     }
 
-    fread((*memory)->memory_data, sizeof(uint8),
-            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, fp);
+    FILE* mem_size_fp = openImg("", "mem_page_count.img");
+    if (mem_size_fp == NULL) {
+        perror("failed to openImg\n");
+        return -1;
+    }
+    // restore page_count
+    uint32 page_count;
+    fread(&page_count, sizeof(uint32), 1, mem_size_fp);
+    wasm_enlarge_memory(module, page_count- (*memory)->cur_page_count);
 
-    fclose(fp);
+    // restore memory_data
+    fread((*memory)->memory_data, sizeof(uint8),
+            (*memory)->num_bytes_per_page * (*memory)->cur_page_count, memory_fp);
+
+    fclose(memory_fp);
+    fclose(mem_size_fp);
     return 0;
 }
 
@@ -401,63 +412,3 @@ int wasm_restore_addrs(
     *end_addr = wasm_get_func_code(func) + p_offset;
 
     fread(&p_offset, sizeof(uint32), 1, fp);
-    *maddr = memory->memory_data + p_offset;
-
-    fread(done_flag, sizeof(bool), 1, fp);
-
-    fclose(fp);
-    return 0;
-}
-
-int wasm_restore_tsp_addr(uint32 **frame_tsp, const WASMInterpFrame *frame)
-{
-    const char *file = "tsp_addr.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32 p_offset;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *frame_tsp = frame->tsp_bottom + p_offset;
-
-    fclose(fp);
-    return 0;
-}
-
-int wasm_restore(WASMModuleInstance **module,
-            WASMExecEnv **exec_env,
-            WASMFunctionInstance **cur_func,
-            WASMInterpFrame **prev_frame,
-            WASMMemoryInstance **memory,
-            WASMGlobalInstance **globals,
-            uint8 **global_data,
-            uint8 **global_addr,
-            WASMInterpFrame **frame,
-            uint8 **frame_ip,
-            uint32 **frame_lp,
-            uint32 **frame_sp,
-            WASMBranchBlock **frame_csp,
-            uint8 **frame_ip_end,
-            uint8 **else_addr,
-            uint8 **end_addr,
-            uint8 **maddr,
-            bool *done_flag) 
-{
-    // restore memory
-    wasm_restore_memory(memory);
-    printf("Success to restore linear memory\n");
-
-    // restore globals
-    wasm_restore_global(*module, *globals, global_data, global_addr);
-    printf("Success to restore globals\n");
-
-    // restore addrs
-    wasm_restore_addrs(*frame, *cur_func, *memory, 
-                        frame_ip, frame_lp, frame_sp, frame_csp,
-                        frame_ip_end, else_addr, end_addr, maddr, done_flag);
-    printf("Success to restore addrs\n");
-
-    return 0;
-}
