@@ -124,11 +124,14 @@ uint8* dispatch(uint8 *ip, uint8 *ip_end) {
         /* constant instructions */
         case WASM_OP_I32_CONST:
         case WASM_OP_I64_CONST:
-        case WASM_OP_F32_CONST:
-        case WASM_OP_F64_CONST:
             skip_leb(ip);
             break;
-
+        case WASM_OP_F32_CONST:
+            ip += sizeof(float32);
+            break;
+        case WASM_OP_F64_CONST:
+            ip += sizeof(float64);
+            break;
         case WASM_OP_MISC_PREFIX:
             skip_leb(ip);
             switch (*ip++) {

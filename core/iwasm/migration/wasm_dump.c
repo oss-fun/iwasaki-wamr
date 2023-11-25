@@ -113,6 +113,7 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
     return 0;
 }
 
+// int debug_flag = 0;
 // ipからip_limまでにopcodeがいくつかるかを返す
 int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     uint32 cnt = 0;
@@ -123,6 +124,9 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     if (ip == ip_lim) return 0;
     while (1) {
         // LOG_DEBUG("get_opcode_offset::ip: 0x%x\n", *ip);
+        // if (debug_flag) {
+        //     printf("(cnt, opcode) = (%d, 0x%x)\n", cnt, *ip);
+        // }
         ip = dispatch(ip, ip_lim);
         cnt++;
         if (ip >= ip_lim) break;
