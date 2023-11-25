@@ -128,7 +128,6 @@ uint8* dispatch(uint8 *ip, uint8 *ip_end) {
             break;
         case WASM_OP_F32_CONST:
             ip += sizeof(float32);
-            // skip_leb(ip);
             break;
         case WASM_OP_F64_CONST:
             ip += sizeof(float64);
