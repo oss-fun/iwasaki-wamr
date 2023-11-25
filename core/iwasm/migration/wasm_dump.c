@@ -483,11 +483,11 @@ int wasm_dump_for_wasmedge(
     bool done_flag) 
 {
     int rc;  
-    rc = wasm_dump_memory_for_wasmedge(memory);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump linear memory for wasmedge\n");
-        return rc;
-    }
+    // rc = wasm_dump_memory_for_wasmedge(memory);
+    // if (rc < 0) {
+    //     LOG_ERROR("Failed to dump linear memory for wasmedge\n");
+    //     return rc;
+    // }
 
     rc = wasm_dump_global_for_wasmedge(module, globals, global_data);
     if (rc < 0) {
