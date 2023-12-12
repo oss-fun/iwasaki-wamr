@@ -164,43 +164,6 @@ int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
 }
 
 
-int wasm_dump_global_for_wasmedge(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
-    FILE *fp;
-    const char *file = "global_for_wasmedge.img";
-    fp = fopen(file, "w");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    // WASMMemoryInstance *memory = module->default_memory;
-    uint8 *global_addr;
-    uint32 val32;
-    uint64 val64;
-    for (int i = 0; i < module->e->global_count; i++) {
-        switch (globals[i].type) {
-            case VALUE_TYPE_I32:
-            case VALUE_TYPE_F32:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                val32 = *(uint32*)global_addr;
-                fprintf(fp, "%d\n", val32);
-                break;
-            case VALUE_TYPE_I64:
-            case VALUE_TYPE_F64:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                val64 = *(uint64*)global_addr;
-                fprintf(fp, "%ld\n", val64);
-                break;
-            default:
-                printf("type error:B\n");
-                break;
-        }
-    }
-
-    fclose(fp);
-    return 0;
-}
-
 int wasm_dump_program_counter_for_wasmedge (
     WASMModuleInstance *module,
     WASMFunctionInstance *func, 
@@ -478,19 +441,7 @@ int wasm_dump_for_wasmedge(
     uint8 *maddr,
     bool done_flag) 
 {
-    int rc;  
-    rc = wasm_dump_memory_for_wasmedge(memory);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump linear memory for wasmedge\n");
-        return rc;
-    }
-
-    rc = wasm_dump_global_for_wasmedge(module, globals, global_data);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump globals for wasmedge\n");
-        return rc;
-    }
-    
+    int rc;
     rc = wasm_dump_program_counter_for_wasmedge(exec_env->module_inst, cur_func, frame_ip);
     if (rc < 0) {
         LOG_ERROR("Failed to dump program counter for wasmedge\n");
