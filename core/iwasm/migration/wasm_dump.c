@@ -673,6 +673,28 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
     return 0;
 }
 
+int wasm_dump_program_counter(
+    WASMModuleInstance *module,
+    WASMFunctionInstance *func,
+    uint8 *frame_ip
+)
+{
+    FILE *fp;
+    const char *file = "program_counter.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    uint32 fidx, p_offset;
+    fidx = func - module->e->functions;
+    p_offset = frame_ip - wasm_get_func_code(func);
+
+    dump_value(&fidx, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
+}
+
 int wasm_dump_addrs(
         WASMInterpFrame *frame,
         WASMFunctionInstance *func,
@@ -780,6 +802,13 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_global(module, globals, global_data);
     if (rc < 0) {
         LOG_ERROR("Failed to dump globals\n");
+        return rc;
+    }
+
+    // dump program counter
+    rc = wasm_dump_program_counter(module, cur_func, frame_ip);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump program_counter\n");
         return rc;
     }
 
