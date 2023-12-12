@@ -135,39 +135,6 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 }
 
 /* wasm_dump for wasmedge */
-int wasm_dump_memory_for_wasmedge(WASMMemoryInstance *memory) {
-    FILE *fp;
-    /* data */
-    char *file = "memory_data_for_wasmedge.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    // WASMMemoryInstance *memory = module->default_memory;
-    fwrite(memory->memory_data, sizeof(uint8),
-           memory->num_bytes_per_page * memory->cur_page_count, fp);
-
-    fclose(fp);
-    
-    /* page_count */
-    file = "memory_page_count_for_wasmedge.img";
-    fp = fopen(file, "w");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-    const uint32 wasmedge_page_size = 65536;
-    uint32 page_count = (memory->num_bytes_per_page / wasmedge_page_size) * memory->cur_page_count;
-    fprintf(fp, "%d", page_count);
-    
-    fclose(fp);
-    
-    return 0;
-}
-
-
 int wasm_dump_program_counter_for_wasmedge (
     WASMModuleInstance *module,
     WASMFunctionInstance *func, 
