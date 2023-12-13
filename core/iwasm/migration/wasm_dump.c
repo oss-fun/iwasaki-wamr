@@ -135,33 +135,6 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 }
 
 /* wasm_dump for wasmedge */
-int wasm_dump_program_counter_for_wasmedge (
-    WASMModuleInstance *module,
-    WASMFunctionInstance *func, 
-    uint8 *frame_ip
-) {
-    FILE *fp;
-    char *file = "iter_for_wasmedge.img";
-    fp = fopen(file, "w");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-    
-    // dump func_idx
-    uint32 fidx = func - module->e->functions;
-    fprintf(fp, "%d\n", fidx);
-
-    // dump ip_offset
-    uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(func), frame_ip);
-    fprintf(fp, "%d\n", ip_ofs);
-    
-    debug_function_opcodes(module, func, ip_ofs);
-
-    fclose(fp);
-    return 0;
-}
-
 int wasm_dump_stack_per_frame_for_wasmedge(WASMInterpFrame *frame, FILE *fp) {
     if (fp == NULL) {
         return -1;
@@ -413,12 +386,6 @@ int wasm_dump_for_wasmedge(
     bool done_flag) 
 {
     int rc;
-    rc = wasm_dump_program_counter_for_wasmedge(exec_env->module_inst, cur_func, frame_ip);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump program counter for wasmedge\n");
-        return rc;
-    }
-
     // debug
     // debug_frame_info(exec_env, frame);
 
@@ -673,6 +640,28 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
     return 0;
 }
 
+int wasm_dump_program_counter(
+    WASMModuleInstance *module,
+    WASMFunctionInstance *func,
+    uint8 *frame_ip
+)
+{
+    FILE *fp;
+    const char *file = "program_counter.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
+
+    uint32 fidx, p_offset;
+    fidx = func - module->e->functions;
+    p_offset = frame_ip - wasm_get_func_code(func);
+
+    dump_value(&fidx, sizeof(uint32), 1, fp);
+    dump_value(&p_offset, sizeof(uint32), 1, fp);
+}
+
 int wasm_dump_addrs(
         WASMInterpFrame *frame,
         WASMFunctionInstance *func,
@@ -695,9 +684,6 @@ int wasm_dump_addrs(
     }
 
     uint32 p_offset;
-    // register uint8 *frame_ip = &opcode_IMPDEP;
-    p_offset = frame_ip - wasm_get_func_code(func);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
     // register uint32 *frame_lp = NULL;
     // register uint32 *frame_sp = NULL;
     p_offset = frame_sp - frame->sp_bottom;
@@ -780,6 +766,13 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_global(module, globals, global_data);
     if (rc < 0) {
         LOG_ERROR("Failed to dump globals\n");
+        return rc;
+    }
+
+    // dump program counter
+    rc = wasm_dump_program_counter(module, cur_func, frame_ip);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump program_counter\n");
         return rc;
     }
 

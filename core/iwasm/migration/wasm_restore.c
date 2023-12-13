@@ -358,6 +358,26 @@ void debug_addr(const char* name, const char* func_name, int value) {
     printf("%s in %s: %p\n", name, func_name, (int)value);
 }
 
+int wasm_restore_program_counter(
+    WASMModuleInstance *module,
+    uint8 **frame_ip)
+{
+    const char *file = "program_counter.img";
+    FILE* fp = openImg("", file);
+    if (fp == NULL) {
+        perror("failed to openImg\n");
+        return -1;
+    }
+
+    uint32 fidx, offset;
+    fread(&fidx, sizeof(uint32), 1, fp);
+    fread(&offset, sizeof(uint32), 1, fp);
+
+    *frame_ip = wasm_get_func_code(module->e->functions + fidx) + offset;
+
+    return 0;
+}
+
 int wasm_restore_addrs(
     const WASMInterpFrame *frame,
     const WASMFunctionInstance *func,
@@ -381,14 +401,14 @@ int wasm_restore_addrs(
 
     uint32 p_offset;
     // register uint8 *frame_ip = &opcode_IMPDEP;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    if (frame->function == NULL) {
-        perror("Error:wasm_restore_addrs:frame_function is null\n");
-    }
-    if (p_offset == NULL) {
-        perror("Error:wasm_restore_addrs:p_offset is null\n");
-    }
-    *frame_ip = wasm_get_func_code(frame->function) + p_offset;
+    // fread(&p_offset, sizeof(uint32), 1, fp);
+    // if (frame->function == NULL) {
+    //     perror("Error:wasm_restore_addrs:frame_function is null\n");
+    // }
+    // if (p_offset == NULL) {
+    //     perror("Error:wasm_restore_addrs:p_offset is null\n");
+    // }
+    // *frame_ip = wasm_get_func_code(frame->function) + p_offset;
 
     // register uint32 *frame_lp = NULL;
     *frame_lp = frame->lp;
@@ -463,6 +483,9 @@ int wasm_restore(WASMModuleInstance **module,
     // restore globals
     wasm_restore_global(*module, *globals, global_data, global_addr);
     printf("Success to restore globals\n");
+
+    // restore program counter
+    wasm_restore_program_counter(*module, frame_ip);
 
     // restore addrs
     wasm_restore_addrs(*frame, *cur_func, *memory,
