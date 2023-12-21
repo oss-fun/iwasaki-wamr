@@ -366,9 +366,7 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     WASMBranchBlock *csp = frame->csp_bottom;
     uint64 addr;
     for (int i = 0; i < ctrl_stack_size; i++) {
-        // fprintf(stderr, "label stack %d\n", i);
 
-        // uint8 *begin_addr;
         fread(&addr, sizeof(uint32), 1, fp);
         if (addr == -1) {
             csp->begin_addr = NULL;
@@ -376,7 +374,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         else {
             csp->begin_addr = addr + wasm_get_func_code(frame->function);
         }
-        // fprintf(stderr, "begin addr\n", i);
 
         // uint8 *target_addr;
         fread(&addr, sizeof(uint32), 1, fp);
@@ -386,7 +383,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         else {
             csp->target_addr = addr + wasm_get_func_code(frame->function);
         }
-        // fprintf(stderr, "target addr\n", i);
 
         // uint32 *frame_sp;
         fread(&addr, sizeof(uint32), 1, fp);
@@ -396,7 +392,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         else {
             csp->frame_sp = addr + frame->sp_bottom;
         }
-        // fprintf(stderr, "sp addr\n", i);
 
         // uint32 *frame_tsp
         fread(&addr, sizeof(uint32), 1, fp);
@@ -406,15 +401,12 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         else {
             csp->frame_tsp = addr + frame->tsp_bottom;
         }
-        // fprintf(stderr, "tsp addr\n", i);
 
         // uint32 cell_num;
         fread(&csp->cell_num, sizeof(uint32), 1, fp);
-        // fprintf(stderr, "cell_num\n", i);
 
         // uint32 count;
         fread(&csp->count, sizeof(uint32), 1, fp);
-        // fprintf(stderr, "count\n", i);
 
         csp++;
     }
@@ -442,13 +434,10 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     }
     fread(&frame_stack_size, sizeof(uint32), 1, fp);
     fclose(fp);
-    printf("load frame_stack_size\n");
 
     char file[32];
     uint32 fidx = 0;
     for (uint32 i = 0; i < frame_stack_size; ++i) {
-        printf("\nload frame[%d]\n", i);
-
         sprintf(file, "stack%d.img", i);
         fp = openImg("", file);
         if (fp == NULL) {
@@ -497,7 +486,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     }
 
     debug_wasm_interp_frame(frame, module_inst->e->functions);
-    printf("Success to restore frame\n");
+    printf("Success to restore stack\n");
     wasm_exec_env_set_cur_frame(exec_env, frame);
     
     _exec_env = &exec_env;

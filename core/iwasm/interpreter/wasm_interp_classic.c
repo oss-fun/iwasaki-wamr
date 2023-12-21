@@ -1137,6 +1137,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
         // uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(cur_func), frame_ip); \
         // printf("fidx: %d\n", fidx);                                             \
         // printf("code line: %d\n", ip_ofs);                                      \
+        // printf("opcode: 0x%x\n", *frame_ip);                                \
 
 #if BH_DEBUG != 0
 #define DISPATCH_LIMIT()                                                        \
@@ -1361,6 +1362,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore_tsp\n");
             return;
         }
+
+        fprintf(stderr, "Success to restore\n");
 
         UPDATE_ALL_FROM_FRAME();
         FETCH_OPCODE_AND_DISPATCH();

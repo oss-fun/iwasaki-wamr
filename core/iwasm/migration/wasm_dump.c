@@ -677,10 +677,8 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     uint32* tsp_bottom = frame->tsp_bottom;
     for (i = 0; i < type_stack_size; ++i) {
         uint8 type = tsp_bottom[i];
-        fprintf(stderr, "type[%d]: %d\n", i, type);
         fwrite(&type, sizeof(uint8), 1, fp);
     }
-    fprintf(stderr, "\n");
 
     // 値スタックの中身
     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
@@ -696,7 +694,7 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
     uint32 addr;
-    for (i = 0; i < ctrl_stack_size; i++, csp++) {
+    for (i = 0; i < ctrl_stack_size; ++i) {
         // uint8 *begin_addr;
         if (csp->begin_addr == NULL) {
             addr = -1;
@@ -741,6 +739,8 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
         // uint32 count;
         fwrite(&csp->count, sizeof(uint32), 1, fp);
+
+        ++csp;
     }
 }
 
@@ -1000,14 +1000,14 @@ int wasm_dump(WASMExecEnv *exec_env,
     //     return rc;
     // }
 
-    // // dump tsp addrs
-    // rc = wasm_dump_tsp_addr(frame_tsp, frame);
-    // if (rc < 0) {
-    //     perror("failed to dump_tsp_addr\n");
-    //     exit(1);
-    // }
+    // dump tsp addrs
+    rc = wasm_dump_tsp_addr(frame_tsp, frame);
+    if (rc < 0) {
+        perror("failed to dump_tsp_addr\n");
+        exit(1);
+    }
 
-    // // dump addrs
+    // dump addrs
     rc = wasm_dump_addrs(frame, cur_func, memory, 
                     frame_ip, frame_sp, frame_csp, frame_ip_end,
                     else_addr, end_addr, maddr, done_flag);
