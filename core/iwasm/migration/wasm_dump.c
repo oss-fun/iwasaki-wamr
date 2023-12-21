@@ -622,6 +622,7 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
 
     // Enter function
     // TODO: 次のフレームの関数インデックスをdump
+    // TODO: enter_fidxはwasm_dump_stack側でdumpした方が良さそう. (restoreはそうする必要があるため)
     uint32 fidx = frame->function - module->e->functions;
     fwrite(&fidx, sizeof(uint32), 1, fp);
 
@@ -955,13 +956,13 @@ int wasm_dump(WASMExecEnv *exec_env,
     // }
 
     // // dump addrs
-    // rc = wasm_dump_addrs(frame, cur_func, memory, 
-    //                 frame_ip, frame_sp, frame_csp, frame_ip_end,
-    //                 else_addr, end_addr, maddr, done_flag);
-    // if (rc < 0) {
-    //     LOG_ERROR("Failed to dump addrs\n");
-    //     return rc;
-    // }
+    rc = wasm_dump_addrs(frame, cur_func, memory, 
+                    frame_ip, frame_sp, frame_csp, frame_ip_end,
+                    else_addr, end_addr, maddr, done_flag);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump addrs\n");
+        return rc;
+    }
 
     LOG_VERBOSE("Success to dump img for wamr\n");
     return 0;

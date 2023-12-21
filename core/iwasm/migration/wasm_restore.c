@@ -294,6 +294,174 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     return frame;
 }
 
+static void
+_restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
+{
+    WASMModuleInstance *module_inst = exec_env->module_inst;
+    WASMFunctionInstance *func = frame->function;
+
+    // 初期化
+    frame->sp_bottom = frame->lp + func->param_cell_num + func->local_cell_num;
+    frame->sp_boundary = frame->sp_bottom + func->u.func->max_stack_cell_num;
+    frame->csp_bottom = frame->sp_boundary;
+    frame->csp_boundary = frame->csp_bottom + func->u.func->max_block_num;
+    frame->tsp_bottom = frame->csp_boundary;
+    frame->tsp_boundary = frame->tsp_bottom + func->u.func->max_stack_cell_num;
+
+    // リターンアドレス
+    uint32 fidx, offset;
+    fread(&fidx, sizeof(uint32), 1, fp);
+    fread(&offset, sizeof(uint32), 1, fp);
+
+    // 型スタックのサイズ
+    uint32 type_stack_size;
+    fread(&type_stack_size, sizeof(uint32), 1, fp);
+    frame->tsp = frame->tsp_bottom + type_stack_size;
+
+    // 型スタックの中身
+    fread(frame->tsp_bottom, sizeof(uint32), type_stack_size, fp);
+
+    // 値スタックのサイズ
+    uint32 *tsp = frame->tsp_bottom;
+    uint32 value_stack_size = 0;
+    for (uint32 i = 0; i < type_stack_size; ++i, ++tsp) {
+        value_stack_size += *tsp;
+    }
+
+    // 値スタックの中身
+    uint32 locals = func->param_count + func->local_count;
+    fread(frame->lp, sizeof(uint32), locals, fp);
+    fread(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
+
+    // ラベルスタックのサイズ
+    uint32 ctrl_stack_size;
+    fread(&ctrl_stack_size, sizeof(uint32), 1, fp);
+    frame->csp = frame->csp_bottom + ctrl_stack_size;
+    
+    // ラベルスタックの中身
+    WASMBranchBlock *csp = frame->csp_bottom;
+    uint64 addr;
+    for (int i = 0; i < ctrl_stack_size; i++, csp++) {
+        // uint8 *begin_addr;
+        fread(&addr, sizeof(uint32), 1, fp);
+        if (addr == -1) {
+            csp->begin_addr = NULL;
+        }
+        else {
+            csp->begin_addr = addr + wasm_get_func_code(frame->function);
+        }
+
+        // uint8 *target_addr;
+        fread(&addr, sizeof(uint32), 1, fp);
+        if (addr == -1) {
+            csp->target_addr = NULL;
+        }
+        else {
+            csp->target_addr = addr + wasm_get_func_code(frame->function);
+        }
+
+        // uint32 *frame_sp;
+        fread(&addr, sizeof(uint32), 1, fp);
+        if (addr == -1) {
+            csp->frame_sp = NULL;
+        }
+        else {
+            csp->frame_sp = addr + frame->sp_bottom;
+        }
+
+        // uint32 *frame_tsp
+        fread(&addr, sizeof(uint32), 1, fp);
+        if (addr == -1) {
+            csp->frame_tsp = NULL;
+        }
+        else {
+            csp->frame_tsp = addr + frame->tsp_bottom;
+        }
+
+        // uint32 cell_num;
+        fread(&csp->cell_num, sizeof(uint32), 1, fp);
+        // uint32 count;
+        fread(&csp->count, sizeof(uint32), 1, fp);
+    }
+}
+
+WASMInterpFrame*
+wasm_restore_stack(WASMExecEnv **_exec_env)
+{
+    WASMExecEnv *exec_env = *_exec_env;
+    WASMModuleInstance *module_inst =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMInterpFrame *frame, *prev_frame = wasm_exec_env_get_cur_frame(exec_env);
+    WASMFunctionInstance *function;
+    uint32 func_idx, frame_size, all_cell_num;
+    FILE *fp;
+
+    uint32 frame_stack_size;
+    fp = openImg("", "frame.img");
+    if (fp == NULL) {
+        perror("failed to open frame.img\n");
+        return NULL;
+    }
+    fread(&frame_stack_size, sizeof(uint32), 1, fp);
+    fclose(fp);
+
+    char file[32];
+    for (uint32 i = 0; i < frame_stack_size; ++i) {
+        sprintf(file, "stack%d.img", i);
+        fp = openImg("", file);
+        if (fp == NULL) {
+            perror("failed to open frame.img\n");
+            return NULL;
+        }
+
+        // TODO: dummyの保存復元って必要？
+        uint32 fidx = 0;
+        if (i == 0) {
+            // 初期フレームのスタックサイズをreadしてALLOC
+            fread(&fidx, sizeof(uint32), 1, fp);
+            fread(&all_cell_num, sizeof(uint32), 1, fp);
+            frame_size = wasm_interp_interp_frame_size(all_cell_num);
+            frame = prev_frame;
+
+            // 初期フレームをrestore
+            frame->function = NULL;
+            frame->ip = NULL;
+            frame->sp = prev_frame->lp + 0;
+        }
+        else {
+            // 関数からスタックサイズを計算し,ALLOC
+            // 前のframeのenter_func_idxが、このframe->functionに対応
+            function = module_inst->e->functions + fidx;
+
+            // TODO: uint64になってるけど、多分uint32
+            all_cell_num = (uint64)function->param_cell_num
+                           + (uint64)function->local_cell_num
+                           + (uint64)function->u.func->max_stack_cell_num
+                           + ((uint64)function->u.func->max_block_num)
+                                 * sizeof(WASMBranchBlock) / 4
+                           + (uint64)function->u.func->max_stack_cell_num;
+            frame_size = wasm_interp_interp_frame_size(all_cell_num);
+            frame = wasm_alloc_frame(exec_env, frame_size,
+                                (WASMInterpFrame *)prev_frame);
+
+            fread(&fidx, sizeof(uint32), 1, fp);
+            // フレームをrestore
+            frame->function = function;
+            _restore_stack(exec_env, frame, fp);
+        }
+        prev_frame = frame;
+        fclose(fp);
+    }
+
+    debug_wasm_interp_frame(frame, module_inst->e->functions);
+    printf("Success to restore frame\n");
+    wasm_exec_env_set_cur_frame(exec_env, frame);
+    
+    _exec_env = &exec_env;
+
+    return frame;
+}
+
 int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory) {
     FILE* memory_fp = openImg("", "memory.img");
     if (memory_fp == NULL) {

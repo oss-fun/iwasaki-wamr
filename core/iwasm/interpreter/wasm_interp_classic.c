@@ -1324,7 +1324,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     if (get_restore_flag()) {
         // bool done_flag;
         int rc;
-        frame = wasm_restore_frame(&exec_env);
+        frame = wasm_restore_stack(&exec_env);
+        // frame = wasm_restore_frame(&exec_env);
         if (frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
             return;
