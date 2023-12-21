@@ -10,6 +10,9 @@ bool get_restore_flag();
 WASMInterpFrame*
 wasm_restore_frame(WASMExecEnv **exec_env);
 
+WASMInterpFrame*
+wasm_restore_stack(WASMExecEnv **exec_env);
+
 static inline void
 debug_wasm_interp_frame(WASMInterpFrame *frame, WASMFunctionInstance* base_func_addr) {
     int cnt = 0;

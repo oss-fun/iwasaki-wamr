@@ -630,26 +630,67 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     fwrite(&offset, sizeof(uint32), 1, fp);
 
     // 型スタックのサイズ
-    uint32 type_stack_size = frame->tsp - frame->tsp_bottom;
-    fwrite(&type_stack_size, sizeof(uint32), 1, fp);
+    WASMFunctionInstance *func = frame->function;
+    uint32 locals = func->param_count + func->local_count;
+    uint32 type_stack_size = (frame->tsp - frame->tsp_bottom);
+    uint32 full_type_stack_size = type_stack_size + locals;
+    fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
 
     // 型スタックの中身
+    uint8 type_stack_locals[locals];
+    // TODO: ここの実装バグの温床なので、なんとかする
+    uint32 *lp = frame->lp;
+    for (i = 0; i < func->param_count; i++) {
+        switch (func->param_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                type_stack_locals[i] = 1;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                type_stack_locals[i] = 2;
+                break;
+            default:
+                type_stack_locals[i] = 4;
+                break;
+        }
+    }
+    uint32 local_base = func->param_count;
+    for (i = 0; i < func->local_count; i++) {
+        switch (func->local_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                type_stack_locals[local_base+i] = 1;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                type_stack_locals[local_base+i] = 2;
+                break;
+            default:
+                type_stack_locals[local_base+i] = 4;
+                break;
+        }
+    }
+    fwrite(&type_stack_locals, sizeof(uint8), locals, fp);
+
     // TODO: type_stackをuint8*にする
     uint32* tsp_bottom = frame->tsp_bottom;
     for (i = 0; i < type_stack_size; ++i) {
-        uint8 type = *(tsp_bottom+i);
+        uint8 type = tsp_bottom[i];
+        fprintf(stderr, "type[%d]: %d\n", i, type);
         fwrite(&type, sizeof(uint8), 1, fp);
     }
+    fprintf(stderr, "\n");
 
     // 値スタックの中身
-    WASMFunctionInstance *func = frame->function;
-    uint32 locals = func->param_count + func->local_count;
+    uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
     uint32 value_stack_size = frame->sp - frame->sp_bottom;
-    fwrite(frame->lp, sizeof(uint32), locals, fp);
+    fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
     fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
 
     // ラベルスタックのサイズ
     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
+    fprintf(stderr, "Label Stack Size: %d\n", ctrl_stack_size);
     fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
 
     // ラベルスタックの中身
