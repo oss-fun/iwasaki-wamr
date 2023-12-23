@@ -72,6 +72,24 @@ wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame
 // }
 
 static void
+debug_frame(WASMInterpFrame* frame)
+{
+    // fprintf(stderr, "Return Address: (%d, %d)\n", fidx, offset);
+    // fprintf(stderr, "TypeStack Content: [");
+    // uint32* tsp_bottom = frame->tsp_bottom;
+    // for (uint32 i = 0; i < type_stack_size; ++i) {
+    //     uint8 type = *(tsp_bottom+i);
+    //     fprintf(stderr, "%d, ", type);
+    // }
+    // fprintf(stderr, "]\n");
+    // fprintf(stderr, "Value Stack Size: %d\n", value_stack_size);
+    // fprintf(stderr, "Type Stack Size(Local含む): %d\n", full_type_stack_size);
+    // fprintf(stderr, "Type Stack Size(Local含まず): %d\n", type_stack_size);
+    // fprintf(stderr, "Label Stack Size: %d\n", ctrl_stack_size);
+    
+}
+
+static void
 debug_local(WASMInterpFrame *frame)
 {
     WASMFunctionInstance *func = frame->function;
@@ -417,30 +435,23 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     fread(&offset, sizeof(uint32), 1, fp);
     frame->function = module_inst->e->functions + fidx;
     frame->ip = wasm_get_func_code(frame->function) + offset;
-    fprintf(stderr, "Return Address: (%d, %d)\n", fidx, offset);
 
     // 型スタックのサイズ
     uint32 locals = func->param_count + func->local_count;
-    fprintf(stderr, "locals: %d\n", locals);
     uint32 full_type_stack_size, type_stack_size;
     fread(&full_type_stack_size, sizeof(uint32), 1, fp);
     type_stack_size = full_type_stack_size - locals;                                      // 統一フォーマットでは、ローカルも型/値スタックに入れているが、WAMRの型/値スタックのサイズはローカル抜き
     frame->tsp = frame->tsp_bottom + type_stack_size;
-    fprintf(stderr, "Type Stack Size(Local含む): %d\n", full_type_stack_size);
-    fprintf(stderr, "Type Stack Size(Local含まず): %d\n", type_stack_size);
 
     // 型スタックの中身
     fseek(fp, sizeof(uint8)*locals, SEEK_CUR);                      // localのやつはWAMRでは必要ないので飛ばす
 
-    fprintf(stderr, "TypeStack Content: [");
     uint32* tsp_bottom = frame->tsp_bottom;
     for (uint32 i = 0; i < type_stack_size; ++i) {
         uint8 type;
         fread(&type, sizeof(uint8), 1, fp);
         *(tsp_bottom+i) = type;
-        fprintf(stderr, "%d, ", type);
     }
-    fprintf(stderr, "]\n");
     // fread(frame->tsp_bottom, sizeof(uint8), type_stack_size, fp);
 
     // 値スタックのサイズ
@@ -450,7 +461,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         value_stack_size += *tsp;
     }
     frame->sp = frame->sp_bottom + value_stack_size;
-    fprintf(stderr, "Value Stack Size: %d\n", value_stack_size);
 
     // 値スタックの中身
     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
@@ -462,8 +472,8 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     uint32 ctrl_stack_size;
     fread(&ctrl_stack_size, sizeof(uint32), 1, fp);
     frame->csp = frame->csp_bottom + ctrl_stack_size;
-    fprintf(stderr, "Label Stack Size: %d\n", ctrl_stack_size);
-    
+
+
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
     uint64 addr;
@@ -511,8 +521,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         // fread(&csp->count, sizeof(uint32), 1, fp2);
         fread(&csp->count, sizeof(uint32), 1, fp);
     }
-    debug_label_stack(frame);
-    fprintf(stderr, "restore label stack content\n");
 }
 
 WASMInterpFrame*
@@ -563,7 +571,6 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
         else {
             // 関数からスタックサイズを計算し,ALLOC
             // 前のframeのenter_func_idxが、このframe->functionに対応
-            fprintf(stderr, "Enter Func Idx: %d\n", fidx);
             function = module_inst->e->functions + fidx;
 
             // TODO: uint64になってるけど、多分uint32
@@ -587,10 +594,8 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
         prev_frame = frame;
         fclose(fp);
     }
-    fprintf(stdout, "[DEBUG]restore_stack_count: %d\n", frame_stack_size);
 
     debug_wasm_interp_frame(frame, module_inst->e->functions);
-    printf("Success to restore stack\n");
     wasm_exec_env_set_cur_frame(exec_env, frame);
     
     _exec_env = &exec_env;
@@ -704,17 +709,6 @@ int wasm_restore_addrs(
     }
 
     uint32 p_offset;
-    // register uint8 *frame_ip = &opcode_IMPDEP;
-    // fread(&p_offset, sizeof(uint32), 1, fp);
-    // if (frame->function == NULL) {
-    //     perror("Error:wasm_restore_addrs:frame_function is null\n");
-    // }
-    // if (p_offset == NULL) {
-    //     perror("Error:wasm_restore_addrs:p_offset is null\n");
-    // }
-    // *frame_ip = wasm_get_func_code(frame->function) + p_offset;
-
-    // register uint32 *frame_lp = NULL;
     *frame_lp = frame->lp;
 
     // register uint32 *frame_sp = NULL;
@@ -780,18 +774,17 @@ int wasm_restore(WASMModuleInstance **module,
             uint8 **maddr,
             bool *done_flag)
 {
-    printf("Enter wasm_restore\n");
     // restore memory
     wasm_restore_memory(*module, memory);
-    printf("Success to restore linear memory\n");
+    // printf("Success to restore linear memory\n");
 
     // restore globals
     wasm_restore_global(*module, *globals, global_data, global_addr);
-    printf("Success to restore globals\n");
+    // printf("Success to restore globals\n");
 
     // restore program counter
     wasm_restore_program_counter(*module, frame_ip);
-    printf("Success to program counter\n");
+    // printf("Success to program counter\n");
 
     // restore addrs
     wasm_restore_addrs(*frame, *cur_func, *memory,
