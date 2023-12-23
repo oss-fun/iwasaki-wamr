@@ -703,51 +703,25 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     uint64 addr;
     for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
         // uint8 *begin_addr;
-        if (csp->begin_addr == NULL) {
-            addr = -1;
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
-        else {
-            addr = csp->begin_addr - wasm_get_func_code(frame->function);
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
+        addr = get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function));
+        fwrite(&addr, sizeof(uint64), 1, fp);
 
         // uint8 *target_addr;
-        if (csp->target_addr == NULL) {
-            addr = -1;
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
-        else {
-            addr = csp->target_addr - wasm_get_func_code(frame->function);
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
+        addr = get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function));
+        fwrite(&addr, sizeof(uint64), 1, fp);
 
         // uint32 *frame_sp;
-        if (csp->frame_sp == NULL) {
-            addr = -1;
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
-        else {
-            addr = csp->frame_sp - frame->sp_bottom;
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
+        addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
+        fwrite(&addr, sizeof(uint64), 1, fp);
 
         // uint32 *frame_tsp;
-        if (csp->frame_tsp == NULL) {
-            addr = -1;
-            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
-        else {
-            addr = csp->frame_tsp - frame->tsp_bottom;
-            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
-            fwrite(&addr, sizeof(uint64), 1, fp);
-        }
+        addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
+        fwrite(&addr, sizeof(uint64), 1, fp);
         
         // uint32 cell_num;
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+
         // uint32 count;
-        // fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
         fwrite(&csp->count, sizeof(uint32), 1, fp);
     }
 }

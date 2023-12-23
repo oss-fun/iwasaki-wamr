@@ -137,12 +137,6 @@ debug_local(WASMInterpFrame *frame)
     fprintf(stderr, "]\n");
 }
 
-static uint32
-get_addr_offset(void* target, void* base)
-{
-    if (target == NULL) return -1;
-    else return target - base;
-}
 
 static void
 debug_label_stack(WASMInterpFrame *frame)

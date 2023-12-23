@@ -17,6 +17,13 @@ get_global_addr_for_migration(uint8 *global_data, WASMGlobalInstance *global)
 #endif
 }
 
+static uint64
+get_addr_offset(void* target, void* base)
+{
+    if (target == NULL) return -1;
+    else return target - base;
+}
+
 // int wasm_dump(WASMExecEnv *exec_env,
 //          WASMModuleInstance *module,
 //          WASMMemoryInstance *memory,
