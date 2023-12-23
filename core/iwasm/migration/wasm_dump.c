@@ -78,9 +78,10 @@ RevFrame *init_rev_frame2(WASMInterpFrame *top_frame, uint32* frame_stack_size) 
     next_rf->frame = top_frame;
     next_rf->next = NULL;
 
-    uint32 frame_idx = 0;
+    uint32 frame_idx = 1;
     while(frame = frame->prev_frame) {
         frame_idx++;
+
         rf = (RevFrame*)malloc(sizeof(RevFrame));
         rf->frame = frame;
         rf->next = next_rf;
@@ -426,185 +427,6 @@ int wasm_dump_for_wasmedge(
     return 0;
 }
 
-/* wasm_dump for webassembly micro runtime */
-// static void
-// dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
-// {
-//     FILE *fp, *csp_tsp_fp, *tsp_fp;
-//     fp = fps[0];
-//     csp_tsp_fp = fps[1];
-//     tsp_fp = fps[2];
-//     if (fp == NULL) {
-//         perror("dump_WASMIntperFrame:fp is null\n");
-//         return;
-//     }
-//     int i;
-//     WASMModuleInstance *module_inst = exec_env->module_inst;
-
-//     // struct WASMInterpFrame *prev_frame;
-//     // struct WASMFunctionInstance *function;
-//     // uint8 *ip;
-//     uint32 ip_offset = frame->ip - wasm_get_func_code(frame->function);
-//     fwrite(&ip_offset, sizeof(uint32), 1, fp);
-
-//     // uint32 *sp_bottom;
-//     // uint32 *sp_boundary;
-//     // uint32 *sp;
-//     uint32 sp_offset = frame->sp - frame->sp_bottom;
-//     fwrite(&sp_offset, sizeof(uint32), 1, fp);
-
-//     // WASMBranchBlock *csp_bottom;
-//     // WASMBranchBlock *csp_boundary;
-//     // WASMBranchBlock *csp;
-//     uint32 csp_offset = frame->csp - frame->csp_bottom;
-//     fwrite(&csp_offset, sizeof(uint32), 1, fp);
-
-//     // uint32 *tsp_bottom;
-//     // uint32 *tsp_boundary;
-//     // uint32 *tsp;
-//     uint32 tsp_offset = frame->tsp - frame->tsp_bottom;
-//     fwrite(&tsp_offset, sizeof(uint32), 1, tsp_fp);
-
-//     // uint32 lp[1];
-//     WASMFunctionInstance *func = frame->function;
-
-//     uint32 *lp = frame->lp;
-//     // VALUE_TYPE_I32
-//     // VALUE_TYPE_F32
-//     // VALUE_TYPE_I64
-//     // VALUE_TYPE_F64
-//     for (i = 0; i < func->param_count; i++) {
-//         switch (func->param_types[i]) {
-//             case VALUE_TYPE_I32:
-//             case VALUE_TYPE_F32:
-//                 fwrite(lp, sizeof(uint32), 1, fp);
-//                 lp++;
-//                 break;
-//             case VALUE_TYPE_I64:
-//             case VALUE_TYPE_F64:
-//                 fwrite(lp, sizeof(uint64), 1, fp);
-//                 lp += 2;
-//                 break;
-//             default:
-//                 printf("TYPE NULL\n");
-//                 break;
-//         }
-//     }
-//     for (i = 0; i < func->local_count; i++) {
-//         switch (func->local_types[i]) {
-//             case VALUE_TYPE_I32:
-//             case VALUE_TYPE_F32:
-//                 fwrite(lp, sizeof(uint32), 1, fp);
-//                 lp++;
-//                 break;
-//             case VALUE_TYPE_I64:
-//             case VALUE_TYPE_F64:
-//                 fwrite(lp, sizeof(uint64), 1, fp);
-//                 lp += 2;
-//                 break;
-//             default:
-//                 printf("TYPE NULL\n");
-//                 break;
-//         }
-//     }
-
-//     fwrite(frame->sp_bottom, sizeof(uint32), sp_offset, fp);
-//     fwrite(frame->tsp_bottom, sizeof(uint32), tsp_offset, tsp_fp);
-
-//     WASMBranchBlock *csp = frame->csp_bottom;
-//     uint32 csp_num = frame->csp - frame->csp_bottom;
-    
-
-//     uint64 addr;
-//     for (i = 0; i < csp_num; i++, csp++) {
-//         // uint8 *begin_addr;
-//         if (csp->begin_addr == NULL) {
-//             addr = -1;
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-//         else {
-//             addr = csp->begin_addr - wasm_get_func_code(frame->function);
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-
-//         // uint8 *target_addr;
-//         if (csp->target_addr == NULL) {
-//             addr = -1;
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-//         else {
-//             addr = csp->target_addr - wasm_get_func_code(frame->function);
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-
-//         // uint32 *frame_sp;
-//         if (csp->frame_sp == NULL) {
-//             addr = -1;
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-//         else {
-//             addr = csp->frame_sp - frame->sp_bottom;
-//             fwrite(&addr, sizeof(uint64), 1, fp);
-//         }
-
-//         // uint32 *frame_tsp;
-//         if (csp->frame_tsp == NULL) {
-//             addr = -1;
-//             fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
-//         }
-//         else {
-//             addr = csp->frame_tsp - frame->tsp_bottom;
-//             fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
-//         }
-        
-//         // uint32 cell_num;
-//         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
-//         // uint32 count;
-//         fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
-//     }
-// }
-
-
-// int
-// wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
-// {
-//     WASMModuleInstance *module =
-//         (WASMModuleInstance *)exec_env->module_inst;
-//     WASMFunctionInstance *function;
-
-//     FILE *fp = open_image("frame.img");
-//     FILE *csp_tsp_fp = open_image("ctrl_tsp.img");
-//     FILE *tsp_fp = open_image("type_stack.img");
-//     FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
-
-//     RevFrame *rf = init_rev_frame(frame);
-//     // frameをbottomからtopまで走査する
-//     do {
-//         WASMInterpFrame *frame = rf->frame;
-//         if (frame == NULL) {
-//             perror("wasm_dump_frame: frame is null\n");
-//             break;
-//         }
-
-//         if (frame->function == NULL) {
-//             // 初期フレーム
-//             uint32 func_idx = -1;
-//             fwrite(&func_idx, sizeof(uint32), 1, fp);
-//             fwrite(&all_cell_num_of_dummy_frame, sizeof(uint32), 1, fp);
-//         }
-//         else {
-//             uint32 func_idx = frame->function - module->e->functions;
-//             fwrite(&func_idx, sizeof(uint32), 1, fp);
-//             dump_WASMInterpFrame(frame, exec_env, fps);
-//         }
-//     } while(rf = rf->next);
-
-//     fclose(fp);
-//     fclose(csp_tsp_fp);
-//     fclose(tsp_fp);
-//     return 0;
-// }
-
 FILE* open_image(const char* file) {
     FILE *fp = fopen(file, "wb");
     if (fp == NULL) {
@@ -613,6 +435,193 @@ FILE* open_image(const char* file) {
     }
     return fp;
 }
+
+/* wasm_dump for webassembly micro runtime */
+static void
+dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
+{
+    FILE *fp, *csp_tsp_fp, *tsp_fp;
+    fp = fps[0];
+    csp_tsp_fp = fps[1];
+    tsp_fp = fps[2];
+    if (fp == NULL) {
+        perror("dump_WASMIntperFrame:fp is null\n");
+        return;
+    }
+    int i;
+    WASMModuleInstance *module_inst = exec_env->module_inst;
+
+    // struct WASMInterpFrame *prev_frame;
+    // struct WASMFunctionInstance *function;
+    // uint8 *ip;
+    uint32 ip_offset = frame->ip - wasm_get_func_code(frame->function);
+    fwrite(&ip_offset, sizeof(uint32), 1, fp);
+
+    // uint32 *sp_bottom;
+    // uint32 *sp_boundary;
+    // uint32 *sp;
+    uint32 sp_offset = frame->sp - frame->sp_bottom;
+    fwrite(&sp_offset, sizeof(uint32), 1, fp);
+
+    // WASMBranchBlock *csp_bottom;
+    // WASMBranchBlock *csp_boundary;
+    // WASMBranchBlock *csp;
+    uint32 csp_offset = frame->csp - frame->csp_bottom;
+    fwrite(&csp_offset, sizeof(uint32), 1, fp);
+
+    // uint32 *tsp_bottom;
+    // uint32 *tsp_boundary;
+    // uint32 *tsp;
+    uint32 tsp_offset = frame->tsp - frame->tsp_bottom;
+    fwrite(&tsp_offset, sizeof(uint32), 1, tsp_fp);
+
+    // uint32 lp[1];
+    WASMFunctionInstance *func = frame->function;
+
+    uint32 *lp = frame->lp;
+    // VALUE_TYPE_I32
+    // VALUE_TYPE_F32
+    // VALUE_TYPE_I64
+    // VALUE_TYPE_F64
+    for (i = 0; i < func->param_count; i++) {
+        switch (func->param_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                fwrite(lp, sizeof(uint32), 1, fp);
+                lp++;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                fwrite(lp, sizeof(uint64), 1, fp);
+                lp += 2;
+                break;
+            default:
+                printf("TYPE NULL\n");
+                break;
+        }
+    }
+    for (i = 0; i < func->local_count; i++) {
+        switch (func->local_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                fwrite(lp, sizeof(uint32), 1, fp);
+                lp++;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                fwrite(lp, sizeof(uint64), 1, fp);
+                lp += 2;
+                break;
+            default:
+                printf("TYPE NULL\n");
+                break;
+        }
+    }
+
+    fwrite(frame->sp_bottom, sizeof(uint32), sp_offset, fp);
+    fwrite(frame->tsp_bottom, sizeof(uint32), tsp_offset, tsp_fp);
+
+    WASMBranchBlock *csp = frame->csp_bottom;
+    uint32 csp_num = frame->csp - frame->csp_bottom;
+    
+
+    uint64 addr;
+    for (i = 0; i < csp_num; i++, csp++) {
+        // uint8 *begin_addr;
+        if (csp->begin_addr == NULL) {
+            addr = -1;
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+        else {
+            addr = csp->begin_addr - wasm_get_func_code(frame->function);
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+
+        // uint8 *target_addr;
+        if (csp->target_addr == NULL) {
+            addr = -1;
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+        else {
+            addr = csp->target_addr - wasm_get_func_code(frame->function);
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+
+        // uint32 *frame_sp;
+        if (csp->frame_sp == NULL) {
+            addr = -1;
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+        else {
+            addr = csp->frame_sp - frame->sp_bottom;
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+
+        // uint32 *frame_tsp;
+        if (csp->frame_tsp == NULL) {
+            addr = -1;
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+        else {
+            addr = csp->frame_tsp - frame->tsp_bottom;
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
+        }
+        
+        // uint32 cell_num;
+        fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+        // uint32 count;
+        // fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
+        fwrite(&csp->count, sizeof(uint32), 1, fp);
+    }
+}
+
+
+int
+wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+{
+    WASMModuleInstance *module =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMFunctionInstance *function;
+
+    FILE *fp = open_image("frame_stack.img");
+    FILE *csp_tsp_fp = open_image("ctrl_tsp.img");
+    FILE *tsp_fp = open_image("type_stack.img");
+    FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
+
+    uint32 frame_stack_size = 0;
+    RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
+    // frameをbottomからtopまで走査する
+    uint32 cnt = 0;
+    do {
+        cnt++;
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
+        if (frame->function == NULL) {
+            // 初期フレーム
+            uint32 func_idx = -1;
+            fwrite(&func_idx, sizeof(uint32), 1, fp);
+            fwrite(&all_cell_num_of_dummy_frame, sizeof(uint32), 1, fp);
+        }
+        else {
+            uint32 func_idx = frame->function - module->e->functions;
+            fwrite(&func_idx, sizeof(uint32), 1, fp);
+            dump_WASMInterpFrame(frame, exec_env, fps);
+        }
+    } while(rf = rf->next);
+    fprintf(stdout, "[DEBUG]dump_frame_count: %d\n", cnt);
+
+    fclose(fp);
+    fclose(csp_tsp_fp);
+    fclose(tsp_fp);
+    return 0;
+}
+
 
 static void
 _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp)
@@ -693,54 +702,55 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
 
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
-    uint32 addr;
-    for (i = 0; i < ctrl_stack_size; ++i) {
+    uint64 addr;
+    for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
         // uint8 *begin_addr;
         if (csp->begin_addr == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         else {
             addr = csp->begin_addr - wasm_get_func_code(frame->function);
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
 
         // uint8 *target_addr;
         if (csp->target_addr == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         else {
             addr = csp->target_addr - wasm_get_func_code(frame->function);
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
 
         // uint32 *frame_sp;
         if (csp->frame_sp == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         else {
             addr = csp->frame_sp - frame->sp_bottom;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
 
         // uint32 *frame_tsp;
         if (csp->frame_tsp == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         else {
             addr = csp->frame_tsp - frame->tsp_bottom;
-            fwrite(&addr, sizeof(uint32), 1, fp);
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         
         // uint32 cell_num;
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
         // uint32 count;
+        // fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
         fwrite(&csp->count, sizeof(uint32), 1, fp);
-
-        ++csp;
     }
 }
 
@@ -754,18 +764,18 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     uint32 frame_stack_size = 0;
     RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
-    RevFrame *rf_origin = rf;
+    // RevFrame *rf_origin = rf;
 
     // frame stackのサイズを保存
     FILE *fp = open_image("frame.img");
     fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
     fclose(fp);
 
-
     // 各フレームの関数インデックスをリスト化
     uint32 functions[frame_stack_size];
-    for (uint32 i = 0; i < frame_stack_size; ++i, rf = rf->next) {
-        WASMInterpFrame *frame = rf->frame;
+    RevFrame *rf2 = rf;
+    for (uint32 i = 0; i < frame_stack_size; ++i, rf2 = rf2->next) {
+        WASMInterpFrame *frame = rf2->frame;
         functions[i] = frame->function - module->e->functions;
     }
 
@@ -776,8 +786,9 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     // frameをbottomからtopまで走査する
     char file[32];
-    rf = rf_origin;
-    for (uint32 i = 0; i < frame_stack_size; ++i, rf = rf->next) {
+    // rf = rf_origin;
+    for (uint32 i = 0; i < frame_stack_size; ++i) {
+    // do {
         sprintf(file, "stack%d.img", i);
         FILE *fp = open_image(file);
 
@@ -789,6 +800,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
         uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
         fwrite(&enter_fidx, sizeof(uint32), 1, fp);
+        fprintf(stderr, "Load Enter Func Idx: %d\n", enter_fidx);
 
         if (frame->function == NULL) {
             // 初期フレーム
@@ -798,7 +810,12 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
             _dump_stack(exec_env, frame, fp);
         }
         fclose(fp);
+
+        rf = rf->next;
     }
+    // } while(rf = rf->next);
+    fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
+    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", i);
 
     return 0;
 }
@@ -955,16 +972,16 @@ int wasm_dump(WASMExecEnv *exec_env,
          bool done_flag)
 {
     int rc;
-    rc = wasm_dump_for_wasmedge(
-        exec_env, module, memory,
-        globals, global_data, global_addr,
-        cur_func, frame, frame_ip, frame_sp, frame_csp,
-        frame_ip_end, else_addr, end_addr, maddr, done_flag
-    );
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump for wasmedge\n");
-        return rc;
-    }
+    // rc = wasm_dump_for_wasmedge(
+    //     exec_env, module, memory,
+    //     globals, global_data, global_addr,
+    //     cur_func, frame, frame_ip, frame_sp, frame_csp,
+    //     frame_ip_end, else_addr, end_addr, maddr, done_flag
+    // );
+    // if (rc < 0) {
+    //     LOG_ERROR("Failed to dump for wasmedge\n");
+    //     return rc;
+    // }
 
     // dump linear memory
     rc = wasm_dump_memory(memory);
@@ -987,18 +1004,17 @@ int wasm_dump(WASMExecEnv *exec_env,
         return rc;
     }
 
+    rc = wasm_dump_frame(exec_env, frame);
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump frame\n");
+        return rc;
+    }
     // dump frame
     rc = wasm_dump_stack(exec_env, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;
     }
-
-    // rc = wasm_dump_frame(exec_env, frame);
-    // if (rc < 0) {
-    //     LOG_ERROR("Failed to dump frame\n");
-    //     return rc;
-    // }
 
     // dump tsp addrs
     rc = wasm_dump_tsp_addr(frame_tsp, frame);

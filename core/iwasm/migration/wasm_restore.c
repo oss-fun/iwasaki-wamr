@@ -72,6 +72,99 @@ wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame
 // }
 
 static void
+debug_local(WASMInterpFrame *frame)
+{
+    WASMFunctionInstance *func = frame->function;
+    uint32 *lp = frame->lp;
+    uint32 param_count = func->param_count;
+    uint32 local_count = func->local_count;
+
+    fprintf(stderr, "locals: [");
+    for (uint32 i = 0; i < param_count; i++) {
+        switch (func->param_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                fprintf(stderr, "%u, ", *(uint32 *)lp);
+                lp++;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                fprintf(stderr, "%lu, ", *(uint64 *)lp);
+                lp += 2;
+                break;
+            default:
+                printf("TYPE NULL\n");
+                break;
+        }
+    }
+
+    /* local */
+    for (uint32 i = 0; i < local_count; i++) {
+        switch (func->local_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                fprintf(stderr, "%u, ", *(uint32 *)lp);
+                lp++;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                fprintf(stderr, "%lu, ", *(uint64 *)lp);
+                lp += 2;
+                break;
+            default:
+                printf("TYPE NULL\n");
+                break;
+        }
+    }
+    fprintf(stderr, "]\n");
+}
+
+static uint32
+get_addr_offset(void* target, void* base)
+{
+    if (target == NULL) return -1;
+    else return target - base;
+}
+
+static void
+debug_label_stack(WASMInterpFrame *frame)
+{
+    WASMBranchBlock *csp = frame->csp_bottom;
+    uint32 csp_num = frame->csp - csp;
+    
+    fprintf(stderr, "label stack: [\n");
+    for (int i = 0; i < csp_num; i++, csp++) {
+        // uint8 *begin_addr;
+        fprintf(stderr, "\t{%d",
+            // csp->begin_addr == NULL ? -1 : csp->begin_addr - wasm_get_func_code(frame->function);
+            get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function))
+        );
+
+        // uint8 *target_addr;
+        fprintf(stderr, ", %d",
+            get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function))
+        );
+
+        // uint32 *frame_sp;
+        fprintf(stderr, ", %d",
+            get_addr_offset(csp->frame_sp, frame->sp_bottom)
+        );
+
+        // uint32 *frame_tsp
+        fprintf(stderr, ", %d",
+            get_addr_offset(csp->frame_tsp, frame->tsp_bottom)
+        );
+
+        // uint32 cell_num;
+        fprintf(stderr, ", %d", csp->cell_num);
+
+        // uint32 count;
+        fprintf(stderr, ", %d}\n", csp->count);
+    }
+    fprintf(stderr, "]\n");
+}
+
+static void
 restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps[3])
 {
     WASMModuleInstance *module_inst = exec_env->module_inst;
@@ -85,7 +178,9 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
     // uint8 *ip;
     uint32 ip_offset;
     fread(&ip_offset, sizeof(uint32), 1, fp);
+    uint32 fidx = func - module_inst->e->functions;
     frame->ip = wasm_get_func_code(frame->function) + ip_offset;
+    fprintf(stderr, "Return Address: (%d, %d)\n", fidx, ip_offset);
 
     // uint32 *sp_bottom;
     // uint32 *sp_boundary;
@@ -97,6 +192,7 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
     uint32 sp_offset;
     fread(&sp_offset, sizeof(uint32), 1, fp);
     frame->sp = frame->sp_bottom + sp_offset;
+    fprintf(stderr, "sp_offset: %d\n", sp_offset);
 
 
     // WASMBranchBlock *csp_bottom;
@@ -107,6 +203,7 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
     uint32 csp_offset;
     fread(&csp_offset, sizeof(uint32), 1, fp);
     frame->csp = frame->csp_bottom + csp_offset;
+    fprintf(stderr, "csp_offset: %d\n", csp_offset);
     
     
     // uint32 *tsp_bottom;
@@ -117,15 +214,12 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
     uint32 tsp_offset;
     fread(&tsp_offset, sizeof(uint32), 1, tsp_fp);
     frame->tsp = frame->tsp_bottom + tsp_offset;
+    fprintf(stderr, "tsp_offset: %d\n", tsp_offset);
 
     // =========================================================
 
     // uint32 lp[1];
     uint32 *lp = frame->lp;
-    // VALUE_TYPE_I32
-    // VALUE_TYPE_F32
-    // VALUE_TYPE_I64
-    // VALUE_TYPE_F64
     for (int i = 0; i < func->param_count; i++) {
         switch (func->param_types[i]) {
             case VALUE_TYPE_I32:
@@ -160,6 +254,7 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
                 break;
         }
     }
+    debug_local(frame);
 
     fread(frame->sp_bottom, sizeof(uint32), sp_offset, fp);
     fread(frame->tsp_bottom, sizeof(uint32), tsp_offset, tsp_fp);
@@ -197,7 +292,8 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
         }
 
         // uint32 *frame_tsp
-        fread(&addr, sizeof(uint64), 1, fp2);
+        // fread(&addr, sizeof(uint64), 1, fp2);
+        fread(&addr, sizeof(uint64), 1, fp);
         if (addr == -1) {
             csp->frame_tsp = NULL;
         }
@@ -208,8 +304,10 @@ restore_WASMInterpFrame(WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE *fps
         // uint32 cell_num;
         fread(&csp->cell_num, sizeof(uint32), 1, fp);
         // uint32 count;
-        fread(&csp->count, sizeof(uint32), 1, fp2);
+        // fread(&csp->count, sizeof(uint32), 1, fp2);
+        fread(&csp->count, sizeof(uint32), 1, fp);
     }
+    debug_label_stack(frame);
 }
 
 WASMInterpFrame*
@@ -224,7 +322,7 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     FILE *fp;
 
     const char* img_dir = "";
-    fp = openImg(img_dir, "frame.img");
+    fp = openImg(img_dir, "frame_stack.img");
     if (fp == NULL) {
         perror("failed to open frame.img\n");
         return NULL;
@@ -245,7 +343,9 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     }
     FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
 
+    uint32 cnt = 0;
     while (!feof(fp)) {
+        cnt++;
         if ((fread(&func_idx, sizeof(uint32), 1, fp)) == 0) {
             break;
         }
@@ -279,7 +379,9 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
             restore_WASMInterpFrame(frame, exec_env, fps);
         }
         prev_frame = frame;
+        fprintf(stderr, "\n");
     }
+    fprintf(stdout, "[DEBUG]restore_frame_count: %d\n", cnt);
     debug_wasm_interp_frame(frame, module_inst->e->functions);
 
 
@@ -294,6 +396,7 @@ wasm_restore_frame(WASMExecEnv **_exec_env)
     return frame;
 }
 
+
 static void
 _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 {
@@ -307,7 +410,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     frame->csp_boundary = frame->csp_bottom + func->u.func->max_block_num;
     frame->tsp_bottom = frame->csp_boundary;
     frame->tsp_boundary = frame->tsp_bottom + func->u.func->max_stack_cell_num;
-    fprintf(stderr, "initialize\n");
 
     // リターンアドレス
     uint32 fidx, offset;
@@ -320,16 +422,15 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     // 型スタックのサイズ
     uint32 locals = func->param_count + func->local_count;
     fprintf(stderr, "locals: %d\n", locals);
-    uint32 type_stack_size;
-    fread(&type_stack_size, sizeof(uint32), 1, fp);
-    type_stack_size -= locals;                                      // 統一フォーマットでは、ローカルも型/値スタックに入れているが、WAMRの型/値スタックのサイズはローカル抜き
+    uint32 full_type_stack_size, type_stack_size;
+    fread(&full_type_stack_size, sizeof(uint32), 1, fp);
+    type_stack_size = full_type_stack_size - locals;                                      // 統一フォーマットでは、ローカルも型/値スタックに入れているが、WAMRの型/値スタックのサイズはローカル抜き
     frame->tsp = frame->tsp_bottom + type_stack_size;
-    fprintf(stderr, "Type Stack Size: %d\n", type_stack_size+locals);
+    fprintf(stderr, "Type Stack Size(Local含む): %d\n", full_type_stack_size);
+    fprintf(stderr, "Type Stack Size(Local含まず): %d\n", type_stack_size);
 
     // 型スタックの中身
     fseek(fp, sizeof(uint8)*locals, SEEK_CUR);                      // localのやつはWAMRでは必要ないので飛ばす
-    // uint8 tmp;
-    // fread(&tmp, sizeof(uint8), locals, fp);
 
     fprintf(stderr, "TypeStack Content: [");
     uint32* tsp_bottom = frame->tsp_bottom;
@@ -354,6 +455,7 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     // 値スタックの中身
     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
     fread(frame->lp, sizeof(uint32), local_cell_num, fp);
+    // debug_local(frame);
     fread(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
 
     // ラベルスタックのサイズ
@@ -365,9 +467,9 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
     uint64 addr;
-    for (int i = 0; i < ctrl_stack_size; i++) {
-
-        fread(&addr, sizeof(uint32), 1, fp);
+    for (int i = 0; i < ctrl_stack_size; ++i, ++csp) {
+        // uint8 *begin_addr;
+        fread(&addr, sizeof(uint64), 1, fp);
         if (addr == -1) {
             csp->begin_addr = NULL;
         }
@@ -376,7 +478,7 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         }
 
         // uint8 *target_addr;
-        fread(&addr, sizeof(uint32), 1, fp);
+        fread(&addr, sizeof(uint64), 1, fp);
         if (addr == -1) {
             csp->target_addr = NULL;
         }
@@ -385,7 +487,7 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         }
 
         // uint32 *frame_sp;
-        fread(&addr, sizeof(uint32), 1, fp);
+        fread(&addr, sizeof(uint64), 1, fp);
         if (addr == -1) {
             csp->frame_sp = NULL;
         }
@@ -394,7 +496,8 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         }
 
         // uint32 *frame_tsp
-        fread(&addr, sizeof(uint32), 1, fp);
+        // fread(&addr, sizeof(uint64), 1, fp2);
+        fread(&addr, sizeof(uint64), 1, fp);
         if (addr == -1) {
             csp->frame_tsp = NULL;
         }
@@ -404,12 +507,11 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 
         // uint32 cell_num;
         fread(&csp->cell_num, sizeof(uint32), 1, fp);
-
         // uint32 count;
+        // fread(&csp->count, sizeof(uint32), 1, fp2);
         fread(&csp->count, sizeof(uint32), 1, fp);
-
-        csp++;
     }
+    debug_label_stack(frame);
     fprintf(stderr, "restore label stack content\n");
 }
 
@@ -479,11 +581,13 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
             // フレームをrestore
             frame->function = function;
             _restore_stack(exec_env, frame, fp);
+            fprintf(stderr, "\n");
         }
 
         prev_frame = frame;
         fclose(fp);
     }
+    fprintf(stdout, "[DEBUG]restore_stack_count: %d\n", frame_stack_size);
 
     debug_wasm_interp_frame(frame, module_inst->e->functions);
     printf("Success to restore stack\n");
