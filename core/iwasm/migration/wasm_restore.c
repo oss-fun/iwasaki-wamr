@@ -526,8 +526,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 WASMInterpFrame*
 wasm_restore_stack(WASMExecEnv **_exec_env)
 {
-    printf("enter wasm_restore_stack\n");
-
     WASMExecEnv *exec_env = *_exec_env;
     WASMModuleInstance *module_inst =
         (WASMModuleInstance *)exec_env->module_inst;
@@ -588,14 +586,13 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
             // フレームをrestore
             frame->function = function;
             _restore_stack(exec_env, frame, fp);
-            fprintf(stderr, "\n");
         }
 
         prev_frame = frame;
         fclose(fp);
     }
 
-    debug_wasm_interp_frame(frame, module_inst->e->functions);
+    // debug_wasm_interp_frame(frame, module_inst->e->functions);
     wasm_exec_env_set_cur_frame(exec_env, frame);
     
     _exec_env = &exec_env;
@@ -790,7 +787,6 @@ int wasm_restore(WASMModuleInstance **module,
     wasm_restore_addrs(*frame, *cur_func, *memory,
                         frame_ip, frame_lp, frame_sp, frame_csp,
                         frame_ip_end, else_addr, end_addr, maddr, done_flag);
-    printf("Success to restore addrs\n");
 
     return 0;
 }

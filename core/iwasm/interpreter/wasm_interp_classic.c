@@ -1369,7 +1369,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             return;
         }
 
-        fprintf(stderr, "Success to restore\n");
 
         UPDATE_ALL_FROM_FRAME();
         FETCH_OPCODE_AND_DISPATCH();

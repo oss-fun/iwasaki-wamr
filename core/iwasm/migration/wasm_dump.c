@@ -614,7 +614,6 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
             dump_WASMInterpFrame(frame, exec_env, fps);
         }
     } while(rf = rf->next);
-    fprintf(stdout, "[DEBUG]dump_frame_count: %d\n", cnt);
 
     fclose(fp);
     fclose(csp_tsp_fp);
@@ -697,7 +696,6 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
 
     // ラベルスタックのサイズ
     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
-    fprintf(stderr, "Label Stack Size: %d\n", ctrl_stack_size);
     fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
 
     // ラベルスタックの中身
@@ -764,7 +762,6 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     uint32 frame_stack_size = 0;
     RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
-    // RevFrame *rf_origin = rf;
 
     // frame stackのサイズを保存
     FILE *fp = open_image("frame.img");
@@ -777,11 +774,6 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     for (uint32 i = 0; i < frame_stack_size; ++i, rf2 = rf2->next) {
         WASMInterpFrame *frame = rf2->frame;
         functions[i] = frame->function - module->e->functions;
-    }
-
-    // debug
-    for (uint32 i = 0; i < frame_stack_size; ++i) {
-        fprintf(stderr, "frame[%d] fidx: %d\n", i, functions[i]);
     }
 
     // frameをbottomからtopまで走査する
@@ -800,7 +792,6 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
         uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
         fwrite(&enter_fidx, sizeof(uint32), 1, fp);
-        fprintf(stderr, "Load Enter Func Idx: %d\n", enter_fidx);
 
         if (frame->function == NULL) {
             // 初期フレーム
@@ -814,7 +805,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         rf = rf->next;
     }
     // } while(rf = rf->next);
-    fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
+    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
     // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", i);
 
     return 0;
@@ -1004,11 +995,6 @@ int wasm_dump(WASMExecEnv *exec_env,
         return rc;
     }
 
-    rc = wasm_dump_frame(exec_env, frame);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump frame\n");
-        return rc;
-    }
     // dump frame
     rc = wasm_dump_stack(exec_env, frame);
     if (rc < 0) {
