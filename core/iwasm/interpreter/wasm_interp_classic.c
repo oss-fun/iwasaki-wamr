@@ -1170,7 +1170,6 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 do {                                                                    \
     dispatch_count++;                                                   \
     CHECK_DUMP()                                                        \
-    printf("opcode: 0x%x\n", *frame_ip);                                \
     goto *handle_table[*frame_ip++];                                    \
 } while(0);
 
@@ -1333,7 +1332,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         // bool done_flag;
         int rc;
 
-        frame = wasm_restore_frame(&exec_env);
+        // frame = wasm_restore_frame(&exec_env);
         frame = wasm_restore_stack(&exec_env);
         if (frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
@@ -1565,55 +1564,9 @@ migration_async:
                 read_leb_uint32(frame_ip, frame_ip_end, depth);
             // fprintf(stderr, "depth: %d\n", depth);
             label_pop_csp_n:
-                // POP_CSP_N(depth);
+                POP_CSP_N(depth);
 
-    do {                                                         
-        uint32 n = depth;
-        uint32 *frame_sp_old = frame_sp;                         
-        uint32 *frame_tsp_old = frame_tsp;                       
-        uint32 cell_num_to_copy, count_to_copy;                  
-        POP_CSP_CHECK_OVERFLOW(n + 1);                           
-        // fprintf(stderr, "POP_CSP_CHECK_OVERFLOW\n");
-
-        frame_csp -= n;                                          
-        frame_ip = (frame_csp - 1)->target_addr;           
-        
-        fprintf(stderr, "function: %d\n", cur_func - module->e->functions);
-        fprintf(stderr, "ip_offset: %d\n", frame_ip - wasm_get_func_code(cur_func));
-        fprintf(stderr, "ip_offset_limit: %d\n", wasm_get_func_code_end(cur_func) - wasm_get_func_code(cur_func));
-        // fprintf(stderr, "frame_ip = target_addr\n");
-
-        /* copy arity values of block */                         
-        frame_sp = (frame_csp - 1)->frame_sp;                    
-        fprintf(stderr, "frame_sp: %d\n", frame_sp - frame->sp_bottom);
-        cell_num_to_copy = (frame_csp - 1)->cell_num;            
-        fprintf(stderr, "cell_num_to_copy: %d\n", cell_num_to_copy);
-        if (cell_num_to_copy > 0) {                              
-            word_copy(frame_sp, frame_sp_old - cell_num_to_copy, 
-                      cell_num_to_copy);                         
-        }                                                        
-        // fprintf(stderr, "copy stack\n");
-
-        frame_tsp = (frame_csp - 1)->frame_tsp;                  
-        fprintf(stderr, "frame_tsp: %d\n", frame_tsp - frame->tsp_bottom);
-        count_to_copy = (frame_csp - 1)->count;                  
-        fprintf(stderr, "count_to_copy: %d\n", count_to_copy);
-        if (count_to_copy > 0) {                                 
-            // fprintf(stderr, "count_to_copy > 0\n");
-            word_copy(frame_tsp, frame_tsp_old - count_to_copy,  
-                      count_to_copy);                            
-        }                                                        
-        // fprintf(stderr, "copy type stack\n");
-
-        frame_sp += cell_num_to_copy;                            
-        frame_tsp += count_to_copy;                              
-        bh_assert((int32)(frame_sp-frame->sp_bottom              
-                ==(int32)(frame_tsp-frame->tsp_bottom)));        
-    } while (0);
-
-                // fprintf(stderr, "pos csp n\n");
                 if (!frame_ip) { /* must be label pushed by WASM_OP_BLOCK */
-                    fprintf(stderr, "frame_ip is NULL\n");
                     if (!wasm_loader_find_block_addr(
                             exec_env, (BlockAddr *)exec_env->block_addr_cache,
                             (frame_csp - 1)->begin_addr, (uint8 *)-1,
@@ -1623,11 +1576,6 @@ migration_async:
                     }
                     frame_ip = end_addr;
                 }
-                printf("frame_ip = %p\n", *frame_ip);
-                printf("frame_ip_next is NULL ? = %d\n", (frame_ip+1) == NULL);
-                // fprintf(stderr, "frame_ip: %p\n", *frame_ip);
-                fprintf(stderr, "success br\n");
-                // exit(1);
                 HANDLE_OP_END();
             }
 
