@@ -24,6 +24,13 @@ get_addr_offset(void* target, void* base)
     else return target - base;
 }
 
+static void*
+set_addr_offset(void* base, uint64 offset)
+{
+    if (offset == -1) return NULL;
+    else return base + offset;
+}
+
 // int wasm_dump(WASMExecEnv *exec_env,
 //          WASMModuleInstance *module,
 //          WASMMemoryInstance *memory,

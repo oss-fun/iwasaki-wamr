@@ -470,49 +470,29 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
-    uint64 addr;
     for (int i = 0; i < ctrl_stack_size; ++i, ++csp) {
+        uint64 offset;
+
         // uint8 *begin_addr;
-        fread(&addr, sizeof(uint64), 1, fp);
-        if (addr == -1) {
-            csp->begin_addr = NULL;
-        }
-        else {
-            csp->begin_addr = addr + wasm_get_func_code(frame->function);
-        }
+        fread(&offset, sizeof(uint64), 1, fp);
+        csp->begin_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint8 *target_addr;
-        fread(&addr, sizeof(uint64), 1, fp);
-        if (addr == -1) {
-            csp->target_addr = NULL;
-        }
-        else {
-            csp->target_addr = addr + wasm_get_func_code(frame->function);
-        }
+        fread(&offset, sizeof(uint64), 1, fp);
+        csp->target_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint32 *frame_sp;
-        fread(&addr, sizeof(uint64), 1, fp);
-        if (addr == -1) {
-            csp->frame_sp = NULL;
-        }
-        else {
-            csp->frame_sp = addr + frame->sp_bottom;
-        }
+        fread(&offset, sizeof(uint64), 1, fp);
+        csp->frame_sp = set_addr_offset(frame->sp_bottom, offset);
 
         // uint32 *frame_tsp
-        // fread(&addr, sizeof(uint64), 1, fp2);
-        fread(&addr, sizeof(uint64), 1, fp);
-        if (addr == -1) {
-            csp->frame_tsp = NULL;
-        }
-        else {
-            csp->frame_tsp = addr + frame->tsp_bottom;
-        }
+        fread(&offset, sizeof(uint64), 1, fp);
+        csp->frame_tsp = set_addr_offset(frame->tsp_bottom, offset);
 
         // uint32 cell_num;
         fread(&csp->cell_num, sizeof(uint32), 1, fp);
+
         // uint32 count;
-        // fread(&csp->count, sizeof(uint32), 1, fp2);
         fread(&csp->count, sizeof(uint32), 1, fp);
     }
 }
