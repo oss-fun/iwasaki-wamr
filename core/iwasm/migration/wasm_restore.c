@@ -17,25 +17,6 @@ bool get_restore_flag()
     return restore_flag;
 }
 
-FILE* openImg(const char* img_dir, const char* file_path) {
-    FILE *fp;
-
-    char *dir = malloc((img_dir == NULL ? 0 : strlen(img_dir))
-                        + strlen(file_path) + 1);
-    if (img_dir != NULL) {
-        dir = strcpy(dir, img_dir);
-    }
-
-    dir = strcat(dir, file_path);
-    fp = fopen(dir, "rb");
-    if (fp == NULL) {
-        printf("file is %s\n", dir);
-        perror("failed to openImg\n");
-        return NULL;
-    }
-
-    return fp;
-}
 
 static inline WASMInterpFrame *
 wasm_alloc_frame(WASMExecEnv *exec_env, uint32 size, WASMInterpFrame *prev_frame)
@@ -261,11 +242,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     FILE *fp;
 
     uint32 frame_stack_size;
-    fp = openImg("", "frame.img");
-    if (fp == NULL) {
-        perror("failed to open frame.img\n");
-        return NULL;
-    }
+    fp = open_image("frame.img", "rb");
     fread(&frame_stack_size, sizeof(uint32), 1, fp);
     fclose(fp);
 
@@ -273,11 +250,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     uint32 fidx = 0;
     for (uint32 i = 0; i < frame_stack_size; ++i) {
         sprintf(file, "stack%d.img", i);
-        fp = openImg("", file);
-        if (fp == NULL) {
-            perror("failed to open frame.img\n");
-            return NULL;
-        }
+        fp = open_image(file, "rb");
 
         // TODO: dummyの保存復元って必要？
         if (i == 0) {
@@ -327,17 +300,9 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
 }
 
 int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory, uint8** maddr) {
-    FILE* memory_fp = openImg("", "memory.img");
-    if (memory_fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
+    FILE* memory_fp = open_image("memory.img", "rb");
+    FILE* mem_size_fp = open_image("mem_page_count.img", "rb");
 
-    FILE* mem_size_fp = openImg("", "mem_page_count.img");
-    if (mem_size_fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
     // restore page_count
     uint32 page_count;
     fread(&page_count, sizeof(uint32), 1, mem_size_fp);
@@ -354,12 +319,7 @@ int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory,
 }
 
 int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstance *globals, uint8 **global_data, uint8 **global_addr) {
-    const char *file = "global.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
+    FILE* fp = open_image("global.img", "rb");
 
     for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
@@ -395,12 +355,7 @@ int wasm_restore_program_counter(
     WASMModuleInstance *module,
     uint8 **frame_ip)
 {
-    const char *file = "program_counter.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
+    FILE* fp = open_image("program_counter.img", "rb");
 
     uint32 fidx, offset;
     fread(&fidx, sizeof(uint32), 1, fp);

@@ -156,17 +156,7 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     return cnt;
 }
 
-/* wasm_dump for wasmedge */
-FILE* open_image(const char* file) {
-    FILE *fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return NULL;
-    }
-    return fp;
-}
-
-
+/* wasm_dump */
 static void
 _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp)
 {
@@ -283,7 +273,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
 
     // frame stackのサイズを保存
-    FILE *fp = open_image("frame.img");
+    FILE *fp = open_image("frame.img", "wb");
     fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
     fclose(fp);
 
@@ -299,7 +289,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     char file[32];
     for (uint32 i = 0; i < frame_stack_size; ++i) {
         sprintf(file, "stack%d.img", i);
-        FILE *fp = open_image(file);
+        FILE *fp = open_image(file, "wb");
 
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
@@ -328,8 +318,8 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 }
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *memory_fp = open_image("memory.img");
-    FILE *mem_size_fp = open_image("mem_page_count.img");
+    FILE *memory_fp = open_image("memory.img", "wb");
+    FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
 
     // WASMMemoryInstance *memory = module->default_memory;
     fwrite(memory->memory_data, sizeof(uint8),
