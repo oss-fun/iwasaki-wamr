@@ -156,17 +156,7 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
     return cnt;
 }
 
-/* wasm_dump for wasmedge */
-FILE* open_image(const char* file) {
-    FILE *fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return NULL;
-    }
-    return fp;
-}
-
-
+/* wasm_dump */
 static void
 _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp)
 {
@@ -283,7 +273,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
 
     // frame stackのサイズを保存
-    FILE *fp = open_image("frame.img");
+    FILE *fp = open_image("frame.img", "wb");
     fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
     fclose(fp);
 
@@ -299,7 +289,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     char file[32];
     for (uint32 i = 0; i < frame_stack_size; ++i) {
         sprintf(file, "stack%d.img", i);
-        FILE *fp = open_image(file);
+        FILE *fp = open_image(file, "wb");
 
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
@@ -328,8 +318,8 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 }
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *memory_fp = open_image("memory.img");
-    FILE *mem_size_fp = open_image("mem_page_count.img");
+    FILE *memory_fp = open_image("memory.img", "wb");
+    FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
 
     // WASMMemoryInstance *memory = module->default_memory;
     fwrite(memory->memory_data, sizeof(uint8),
@@ -397,69 +387,6 @@ int wasm_dump_program_counter(
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 }
 
-int wasm_dump_addrs(
-        WASMInterpFrame *frame,
-        WASMFunctionInstance *func,
-        WASMMemoryInstance *memory,
-        uint8 *frame_ip,
-        uint32 *frame_sp,
-        WASMBranchBlock *frame_csp,
-        uint8 *frame_ip_end,
-        uint8 *else_addr,
-        uint8 *end_addr,
-        uint8 *maddr,
-        bool done_flag) 
-{
-    FILE *fp;
-    const char *file = "addr.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32 p_offset;
-    // register uint32 *frame_lp = NULL;
-    // register uint32 *frame_sp = NULL;
-    p_offset = frame_sp - frame->sp_bottom;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    // WASMBranchBlock *frame_csp = NULL;
-    p_offset = frame_csp - frame->csp_bottom;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    p_offset = else_addr - wasm_get_func_code(func);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    p_offset = end_addr - wasm_get_func_code(func);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    p_offset = maddr - memory->memory_data;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    dump_value(&done_flag, sizeof(done_flag), 1, fp);
-
-    fclose(fp);
-    return 0;
-}
-
-int wasm_dump_tsp_addr(uint32 *frame_tsp, struct WASMInterpFrame *frame)
-{
-    FILE *fp;
-    const char *file = "tsp_addr.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32_t p_offset = frame_tsp - frame->tsp_bottom;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    fclose(fp);
-    return 0;
-}
-
 int wasm_dump(WASMExecEnv *exec_env,
          WASMModuleInstance *module,
          WASMMemoryInstance *memory,
@@ -504,22 +431,6 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_stack(exec_env, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
-        return rc;
-    }
-
-    // dump tsp addrs
-    rc = wasm_dump_tsp_addr(frame_tsp, frame);
-    if (rc < 0) {
-        perror("failed to dump_tsp_addr\n");
-        exit(1);
-    }
-
-    // dump addrs
-    rc = wasm_dump_addrs(frame, cur_func, memory, 
-                    frame_ip, frame_sp, frame_csp, frame_ip_end,
-                    else_addr, end_addr, maddr, done_flag);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump addrs\n");
         return rc;
     }
 

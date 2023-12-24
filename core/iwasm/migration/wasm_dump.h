@@ -22,6 +22,4 @@ int wasm_dump(WASMExecEnv *exec_env,
          uint8 *maddr,
          bool done_flag);
 
-int wasm_dump_tsp_addr(uint32 *frame_tsp, struct WASMInterpFrame *frame);
-
 #endif // _WASM_CHECKPOINT_H
