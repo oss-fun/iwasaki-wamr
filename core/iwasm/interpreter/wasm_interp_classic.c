@@ -1332,7 +1332,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         // bool done_flag;
         int rc;
 
-        // frame = wasm_restore_frame(&exec_env);
         frame = wasm_restore_stack(&exec_env);
         if (frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
@@ -4153,8 +4152,6 @@ migration_async:
                 (uint32 *)frame->csp_boundary;
             frame->tsp_boundary = 
                 frame->tsp_bottom + cur_wasm_func->max_stack_cell_num;
-            frame->vpos = prev_frame->vpos + (uint32)(prev_frame->tsp - prev_frame->tsp_bottom) 
-                        + cur_func->local_count + cur_func->param_count;
 
             /* Initialize the local variables */
             memset(frame_lp + cur_func->param_cell_num, 0,
