@@ -56,7 +56,6 @@ typedef struct WASMInterpFrame {
     uint32 *tsp_bottom;
     uint32 *tsp_boundary;
     uint32 *tsp;
-    uint32 vpos;
 
     /**
      * Frame data, the layout is:
