@@ -58,16 +58,38 @@ RevFrame *init_rev_frame(WASMInterpFrame *top_frame) {
     next_rf->frame = top_frame;
     next_rf->next = NULL;
 
-    int cnt = 0;
     while(frame = frame->prev_frame) {
-        cnt++;
         rf = (RevFrame*)malloc(sizeof(RevFrame));
         rf->frame = frame;
         rf->next = next_rf;
         next_rf = rf;
     }
-    LOG_DEBUG("frame count is %d\n", cnt);
     
+    return rf;
+} 
+
+RevFrame *init_rev_frame2(WASMInterpFrame *top_frame, uint32* frame_stack_size) {
+    WASMInterpFrame *frame = top_frame;
+    RevFrame *rf, *next_rf;
+
+    // top_rev_frame
+    // TODO: freeする必要ある
+    next_rf = (RevFrame*)malloc(sizeof(RevFrame));
+    next_rf->frame = top_frame;
+    next_rf->next = NULL;
+
+    uint32 frame_idx = 1;
+    while(frame = frame->prev_frame) {
+        frame_idx++;
+
+        rf = (RevFrame*)malloc(sizeof(RevFrame));
+        rf->frame = frame;
+        rf->next = next_rf;
+        next_rf = rf;
+    }
+    LOG_DEBUG("frame count is %d\n", *frame_stack_size);
+    
+    (*frame_stack_size) = frame_idx;
     return rf;
 } 
 
@@ -389,20 +411,29 @@ int wasm_dump_for_wasmedge(
     // debug
     // debug_frame_info(exec_env, frame);
 
-    rc = wasm_dump_frame_for_wasmedge(exec_env->module_inst, frame);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump frame for wasmedge\n");
-        return rc;
-    }
+    // rc = wasm_dump_frame_for_wasmedge(exec_env->module_inst, frame);
+    // if (rc < 0) {
+    //     LOG_ERROR("Failed to dump frame for wasmedge\n");
+    //     return rc;
+    // }
 
-    rc = wasm_dump_stack_for_wasmedge(frame);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump stack for wasmedge\n");
-        return rc;
-    }
+    // rc = wasm_dump_stack_for_wasmedge(frame);
+    // if (rc < 0) {
+    //     LOG_ERROR("Failed to dump stack for wasmedge\n");
+    //     return rc;
+    // }
     
-    LOG_VERBOSE("Success to dump img for wasmedge\n");
+    // LOG_VERBOSE("Success to dump img for wasmedge\n");
     return 0;
+}
+
+FILE* open_image(const char* file) {
+    FILE *fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return NULL;
+    }
+    return fp;
 }
 
 /* wasm_dump for webassembly micro runtime */
@@ -529,28 +560,23 @@ dump_WASMInterpFrame(struct WASMInterpFrame *frame, WASMExecEnv *exec_env, FILE 
         // uint32 *frame_tsp;
         if (csp->frame_tsp == NULL) {
             addr = -1;
-            fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         else {
             addr = csp->frame_tsp - frame->tsp_bottom;
-            fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            // fwrite(&addr, sizeof(uint64), 1, csp_tsp_fp);
+            fwrite(&addr, sizeof(uint64), 1, fp);
         }
         
         // uint32 cell_num;
         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
         // uint32 count;
-        fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
+        // fwrite(&csp->count, sizeof(uint32), 1, csp_tsp_fp);
+        fwrite(&csp->count, sizeof(uint32), 1, fp);
     }
 }
 
-FILE* open_image(const char* file) {
-    FILE *fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return NULL;
-    }
-    return fp;
-}
 
 int
 wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
@@ -559,14 +585,17 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         (WASMModuleInstance *)exec_env->module_inst;
     WASMFunctionInstance *function;
 
-    FILE *fp = open_image("frame.img");
+    FILE *fp = open_image("frame_stack.img");
     FILE *csp_tsp_fp = open_image("ctrl_tsp.img");
     FILE *tsp_fp = open_image("type_stack.img");
     FILE *fps[3] = {fp, csp_tsp_fp, tsp_fp};
 
-    RevFrame *rf = init_rev_frame(frame);
+    uint32 frame_stack_size = 0;
+    RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
     // frameをbottomからtopまで走査する
+    uint32 cnt = 0;
     do {
+        cnt++;
         WASMInterpFrame *frame = rf->frame;
         if (frame == NULL) {
             perror("wasm_dump_frame: frame is null\n");
@@ -589,6 +618,170 @@ wasm_dump_frame(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     fclose(fp);
     fclose(csp_tsp_fp);
     fclose(tsp_fp);
+    return 0;
+}
+
+
+static void
+_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp)
+{
+    int i;
+    WASMModuleInstance *module = exec_env->module_inst;
+
+    // Enter function
+    // wasm_dump_stackの方でdump
+
+    // リターンアドレス
+    uint32 fidx = frame->function - module->e->functions;
+    uint32 offset = frame->ip - wasm_get_func_code(frame->function);
+    fwrite(&fidx, sizeof(uint32), 1, fp);
+    fwrite(&offset, sizeof(uint32), 1, fp);
+
+    // 型スタックのサイズ
+    WASMFunctionInstance *func = frame->function;
+    uint32 locals = func->param_count + func->local_count;
+    uint32 type_stack_size = (frame->tsp - frame->tsp_bottom);
+    uint32 full_type_stack_size = type_stack_size + locals;
+    fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
+
+    // 型スタックの中身
+    uint8 type_stack_locals[locals];
+    // TODO: ここの実装バグの温床なので、なんとかする
+    uint32 *lp = frame->lp;
+    for (i = 0; i < func->param_count; i++) {
+        switch (func->param_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                type_stack_locals[i] = 1;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                type_stack_locals[i] = 2;
+                break;
+            default:
+                type_stack_locals[i] = 4;
+                break;
+        }
+    }
+    uint32 local_base = func->param_count;
+    for (i = 0; i < func->local_count; i++) {
+        switch (func->local_types[i]) {
+            case VALUE_TYPE_I32:
+            case VALUE_TYPE_F32:
+                type_stack_locals[local_base+i] = 1;
+                break;
+            case VALUE_TYPE_I64:
+            case VALUE_TYPE_F64:
+                type_stack_locals[local_base+i] = 2;
+                break;
+            default:
+                type_stack_locals[local_base+i] = 4;
+                break;
+        }
+    }
+    fwrite(&type_stack_locals, sizeof(uint8), locals, fp);
+
+    // TODO: type_stackをuint8*にする
+    uint32* tsp_bottom = frame->tsp_bottom;
+    for (i = 0; i < type_stack_size; ++i) {
+        uint8 type = tsp_bottom[i];
+        fwrite(&type, sizeof(uint8), 1, fp);
+    }
+
+    // 値スタックの中身
+    uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
+    uint32 value_stack_size = frame->sp - frame->sp_bottom;
+    fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
+    fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
+
+    // ラベルスタックのサイズ
+    uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
+    fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
+
+    // ラベルスタックの中身
+    WASMBranchBlock *csp = frame->csp_bottom;
+    uint64 addr;
+    for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
+        // uint8 *begin_addr;
+        addr = get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function));
+        fwrite(&addr, sizeof(uint64), 1, fp);
+
+        // uint8 *target_addr;
+        addr = get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function));
+        fwrite(&addr, sizeof(uint64), 1, fp);
+
+        // uint32 *frame_sp;
+        addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
+        fwrite(&addr, sizeof(uint64), 1, fp);
+
+        // uint32 *frame_tsp;
+        addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
+        fwrite(&addr, sizeof(uint64), 1, fp);
+        
+        // uint32 cell_num;
+        fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+
+        // uint32 count;
+        fwrite(&csp->count, sizeof(uint32), 1, fp);
+    }
+}
+
+
+int
+wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+{
+    WASMModuleInstance *module =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMFunctionInstance *function;
+
+    uint32 frame_stack_size = 0;
+    RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
+
+    // frame stackのサイズを保存
+    FILE *fp = open_image("frame.img");
+    fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
+    fclose(fp);
+
+    // 各フレームの関数インデックスをリスト化
+    uint32 functions[frame_stack_size];
+    RevFrame *rf2 = rf;
+    for (uint32 i = 0; i < frame_stack_size; ++i, rf2 = rf2->next) {
+        WASMInterpFrame *frame = rf2->frame;
+        functions[i] = frame->function - module->e->functions;
+    }
+
+    // frameをbottomからtopまで走査する
+    char file[32];
+    // rf = rf_origin;
+    for (uint32 i = 0; i < frame_stack_size; ++i) {
+    // do {
+        sprintf(file, "stack%d.img", i);
+        FILE *fp = open_image(file);
+
+        WASMInterpFrame *frame = rf->frame;
+        if (frame == NULL) {
+            perror("wasm_dump_frame: frame is null\n");
+            break;
+        }
+
+        uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
+        fwrite(&enter_fidx, sizeof(uint32), 1, fp);
+
+        if (frame->function == NULL) {
+            // 初期フレーム
+            fwrite(&all_cell_num_of_dummy_frame, sizeof(uint32), 1, fp);
+        }
+        else {
+            _dump_stack(exec_env, frame, fp);
+        }
+        fclose(fp);
+
+        rf = rf->next;
+    }
+    // } while(rf = rf->next);
+    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
+    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", i);
+
     return 0;
 }
 
@@ -744,16 +937,16 @@ int wasm_dump(WASMExecEnv *exec_env,
          bool done_flag)
 {
     int rc;
-    rc = wasm_dump_for_wasmedge(
-        exec_env, module, memory,
-        globals, global_data, global_addr,
-        cur_func, frame, frame_ip, frame_sp, frame_csp,
-        frame_ip_end, else_addr, end_addr, maddr, done_flag
-    );
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump for wasmedge\n");
-        return rc;
-    }
+    // rc = wasm_dump_for_wasmedge(
+    //     exec_env, module, memory,
+    //     globals, global_data, global_addr,
+    //     cur_func, frame, frame_ip, frame_sp, frame_csp,
+    //     frame_ip_end, else_addr, end_addr, maddr, done_flag
+    // );
+    // if (rc < 0) {
+    //     LOG_ERROR("Failed to dump for wasmedge\n");
+    //     return rc;
+    // }
 
     // dump linear memory
     rc = wasm_dump_memory(memory);
@@ -777,7 +970,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     }
 
     // dump frame
-    rc = wasm_dump_frame(exec_env, frame);
+    rc = wasm_dump_stack(exec_env, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;
