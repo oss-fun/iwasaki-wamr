@@ -412,17 +412,10 @@ int wasm_restore_program_counter(
 
 int wasm_restore_addrs(
     const WASMInterpFrame *frame,
-    const WASMFunctionInstance *func,
     const WASMMemoryInstance *memory,
-    uint8 **frame_ip,
     uint32 **frame_lp,
-    uint32 **frame_sp,
-    WASMBranchBlock **frame_csp,
     uint8 **frame_ip_end,
-    uint8 **else_addr,
-    uint8 **end_addr,
-    uint8 **maddr,
-    bool *done_flag) 
+    uint8 **maddr) 
 {
     const char *file = "addr.img";
     FILE* fp = openImg("", file);
@@ -434,37 +427,12 @@ int wasm_restore_addrs(
     uint32 p_offset;
     *frame_lp = frame->lp;
 
-    // register uint32 *frame_sp = NULL;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *frame_sp = frame->sp_bottom + p_offset;
-
-    // WASMBranchBlock *frame_csp = NULL;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *frame_csp = frame->csp_bottom + p_offset;
-
     // uint8 *frame_ip_end = frame_ip + 1;
     *frame_ip_end = wasm_get_func_code_end(frame->function);
 
     // maddr
     fread(&p_offset, sizeof(uint32), 1, fp);
     *maddr = memory->memory_data + p_offset;
-
-    fclose(fp);
-    return 0;
-}
-
-int wasm_restore_tsp_addr(uint32 **frame_tsp, const WASMInterpFrame *frame)
-{
-    const char *file = "tsp_addr.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32 p_offset;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *frame_tsp = frame->tsp_bottom + p_offset;
 
     fclose(fp);
     return 0;
@@ -502,9 +470,7 @@ int wasm_restore(WASMModuleInstance **module,
     // printf("Success to program counter\n");
 
     // restore addrs
-    wasm_restore_addrs(*frame, *cur_func, *memory,
-                        frame_ip, frame_lp, frame_sp, frame_csp,
-                        frame_ip_end, else_addr, end_addr, maddr, done_flag);
+    wasm_restore_addrs(*frame, *memory, frame_lp, frame_ip_end, maddr);
 
     return 0;
 }

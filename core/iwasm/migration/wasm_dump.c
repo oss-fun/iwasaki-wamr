@@ -398,17 +398,8 @@ int wasm_dump_program_counter(
 }
 
 int wasm_dump_addrs(
-        WASMInterpFrame *frame,
-        WASMFunctionInstance *func,
         WASMMemoryInstance *memory,
-        uint8 *frame_ip,
-        uint32 *frame_sp,
-        WASMBranchBlock *frame_csp,
-        uint8 *frame_ip_end,
-        uint8 *else_addr,
-        uint8 *end_addr,
-        uint8 *maddr,
-        bool done_flag) 
+        uint8 *maddr) 
 {
     FILE *fp;
     const char *file = "addr.img";
@@ -419,33 +410,9 @@ int wasm_dump_addrs(
     }
 
     uint32 p_offset;
-    // register uint32 *frame_sp = NULL;
-    p_offset = frame_sp - frame->sp_bottom;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    // WASMBranchBlock *frame_csp = NULL;
-    p_offset = frame_csp - frame->csp_bottom;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     // maddr
     p_offset = maddr - memory->memory_data;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    fclose(fp);
-    return 0;
-}
-
-int wasm_dump_tsp_addr(uint32 *frame_tsp, struct WASMInterpFrame *frame)
-{
-    FILE *fp;
-    const char *file = "tsp_addr.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32_t p_offset = frame_tsp - frame->tsp_bottom;
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
     fclose(fp);
@@ -499,17 +466,8 @@ int wasm_dump(WASMExecEnv *exec_env,
         return rc;
     }
 
-    // dump tsp addrs
-    rc = wasm_dump_tsp_addr(frame_tsp, frame);
-    if (rc < 0) {
-        perror("failed to dump_tsp_addr\n");
-        exit(1);
-    }
-
     // dump addrs
-    rc = wasm_dump_addrs(frame, cur_func, memory, 
-                    frame_ip, frame_sp, frame_csp, frame_ip_end,
-                    else_addr, end_addr, maddr, done_flag);
+    rc = wasm_dump_addrs(memory, maddr);
     if (rc < 0) {
         LOG_ERROR("Failed to dump addrs\n");
         return rc;

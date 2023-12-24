@@ -1361,14 +1361,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         }
         linear_mem_size = memory ? memory->memory_data_size : 0;
 
-        rc = wasm_restore_tsp_addr(&frame_tsp, frame);
-        if (rc < 0) {
-            // error
-            perror("failed to restore_tsp\n");
-            return;
-        }
-
-
         UPDATE_ALL_FROM_FRAME();
         FETCH_OPCODE_AND_DISPATCH();
     }
