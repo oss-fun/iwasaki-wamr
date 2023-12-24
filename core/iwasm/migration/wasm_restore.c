@@ -326,7 +326,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     return frame;
 }
 
-int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory) {
+int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory, uint8** maddr) {
     FILE* memory_fp = openImg("", "memory.img");
     if (memory_fp == NULL) {
         perror("failed to openImg\n");
@@ -342,6 +342,7 @@ int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory)
     uint32 page_count;
     fread(&page_count, sizeof(uint32), 1, mem_size_fp);
     wasm_enlarge_memory(module, page_count- (*memory)->cur_page_count);
+    *maddr = page_count * (*memory)->num_bytes_per_page;
 
     // restore memory_data
     fread((*memory)->memory_data, sizeof(uint8),
@@ -410,34 +411,6 @@ int wasm_restore_program_counter(
     return 0;
 }
 
-int wasm_restore_addrs(
-    const WASMInterpFrame *frame,
-    const WASMMemoryInstance *memory,
-    uint32 **frame_lp,
-    uint8 **frame_ip_end,
-    uint8 **maddr) 
-{
-    const char *file = "addr.img";
-    FILE* fp = openImg("", file);
-    if (fp == NULL) {
-        perror("failed to openImg\n");
-        return -1;
-    }
-
-    uint32 p_offset;
-    *frame_lp = frame->lp;
-
-    // uint8 *frame_ip_end = frame_ip + 1;
-    *frame_ip_end = wasm_get_func_code_end(frame->function);
-
-    // maddr
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *maddr = memory->memory_data + p_offset;
-
-    fclose(fp);
-    return 0;
-}
-
 int wasm_restore(WASMModuleInstance **module,
             WASMExecEnv **exec_env,
             WASMFunctionInstance **cur_func,
@@ -458,7 +431,7 @@ int wasm_restore(WASMModuleInstance **module,
             bool *done_flag)
 {
     // restore memory
-    wasm_restore_memory(*module, memory);
+    wasm_restore_memory(*module, memory, maddr);
     // printf("Success to restore linear memory\n");
 
     // restore globals
@@ -468,9 +441,6 @@ int wasm_restore(WASMModuleInstance **module,
     // restore program counter
     wasm_restore_program_counter(*module, frame_ip);
     // printf("Success to program counter\n");
-
-    // restore addrs
-    wasm_restore_addrs(*frame, *memory, frame_lp, frame_ip_end, maddr);
 
     return 0;
 }

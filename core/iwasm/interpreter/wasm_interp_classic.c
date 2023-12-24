@@ -1361,6 +1361,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         }
         linear_mem_size = memory ? memory->memory_data_size : 0;
 
+        frame_lp = frame->lp;
         UPDATE_ALL_FROM_FRAME();
         FETCH_OPCODE_AND_DISPATCH();
     }

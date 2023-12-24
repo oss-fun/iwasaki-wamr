@@ -397,28 +397,6 @@ int wasm_dump_program_counter(
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 }
 
-int wasm_dump_addrs(
-        WASMMemoryInstance *memory,
-        uint8 *maddr) 
-{
-    FILE *fp;
-    const char *file = "addr.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
-    uint32 p_offset;
-
-    // maddr
-    p_offset = maddr - memory->memory_data;
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    fclose(fp);
-    return 0;
-}
-
 int wasm_dump(WASMExecEnv *exec_env,
          WASMModuleInstance *module,
          WASMMemoryInstance *memory,
@@ -463,13 +441,6 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_stack(exec_env, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
-        return rc;
-    }
-
-    // dump addrs
-    rc = wasm_dump_addrs(memory, maddr);
-    if (rc < 0) {
-        LOG_ERROR("Failed to dump addrs\n");
         return rc;
     }
 
