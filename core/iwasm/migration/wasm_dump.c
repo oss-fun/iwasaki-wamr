@@ -419,7 +419,6 @@ int wasm_dump_addrs(
     }
 
     uint32 p_offset;
-    // register uint32 *frame_lp = NULL;
     // register uint32 *frame_sp = NULL;
     p_offset = frame_sp - frame->sp_bottom;
     dump_value(&p_offset, sizeof(uint32), 1, fp);
@@ -428,16 +427,9 @@ int wasm_dump_addrs(
     p_offset = frame_csp - frame->csp_bottom;
     dump_value(&p_offset, sizeof(uint32), 1, fp);
 
-    p_offset = else_addr - wasm_get_func_code(func);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    p_offset = end_addr - wasm_get_func_code(func);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
-
+    // maddr
     p_offset = maddr - memory->memory_data;
     dump_value(&p_offset, sizeof(uint32), 1, fp);
-
-    dump_value(&done_flag, sizeof(done_flag), 1, fp);
 
     fclose(fp);
     return 0;

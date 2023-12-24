@@ -445,17 +445,9 @@ int wasm_restore_addrs(
     // uint8 *frame_ip_end = frame_ip + 1;
     *frame_ip_end = wasm_get_func_code_end(frame->function);
 
-    // uint8 *else_addr, *end_addr, *maddr;
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *else_addr = wasm_get_func_code(func) + p_offset;
-
-    fread(&p_offset, sizeof(uint32), 1, fp);
-    *end_addr = wasm_get_func_code(func) + p_offset;
-
+    // maddr
     fread(&p_offset, sizeof(uint32), 1, fp);
     *maddr = memory->memory_data + p_offset;
-
-    fread(done_flag, sizeof(bool), 1, fp);
 
     fclose(fp);
     return 0;
