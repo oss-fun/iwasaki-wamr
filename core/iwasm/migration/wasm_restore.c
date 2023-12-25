@@ -237,6 +237,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     WASMModuleInstance *module_inst =
         (WASMModuleInstance *)exec_env->module_inst;
     WASMInterpFrame *frame, *prev_frame = wasm_exec_env_get_cur_frame(exec_env);
+    frame = prev_frame;
     WASMFunctionInstance *function;
     uint32 func_idx, frame_size, all_cell_num;
     FILE *fp;
@@ -254,16 +255,9 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
 
         // TODO: dummyの保存復元って必要？
         if (i == 0) {
-            // 初期フレームのスタックサイズをreadしてALLOC
+            // 次のfidxだけ取る
+            // TODO: enter funcに対して各要素の保存復元をする
             fread(&fidx, sizeof(uint32), 1, fp);
-            fread(&all_cell_num, sizeof(uint32), 1, fp);
-            frame_size = wasm_interp_interp_frame_size(all_cell_num);
-            frame = prev_frame;
-
-            // 初期フレームをrestore
-            frame->function = NULL;
-            frame->ip = NULL;
-            frame->sp = prev_frame->lp + 0;
         }
         else {
             // 関数からスタックサイズを計算し,ALLOC
