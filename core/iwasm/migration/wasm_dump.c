@@ -14,11 +14,6 @@
     }                                   \
 
 /* common_functions */
-int all_cell_num_of_dummy_frame = -1;
-void set_all_cell_num_of_dummy_frame(int all_cell_num) {
-    all_cell_num_of_dummy_frame = all_cell_num;
-}
-
 int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
     if (stream == NULL) {
         return -1;
@@ -300,11 +295,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
         fwrite(&enter_fidx, sizeof(uint32), 1, fp);
 
-        if (frame->function == NULL) {
-            // 初期フレーム
-            fwrite(&all_cell_num_of_dummy_frame, sizeof(uint32), 1, fp);
-        }
-        else {
+        if (frame->function != NULL) {
             _dump_stack(exec_env, frame, fp);
         }
         fclose(fp);

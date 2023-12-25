@@ -4441,8 +4441,6 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
         return;
 
     // wasm_dump's function
-    set_all_cell_num_of_dummy_frame(all_cell_num);
-
     outs_area = wasm_exec_env_wasm_stack_top(exec_env);
     frame->function = NULL;
     frame->ip = NULL;
