@@ -207,19 +207,19 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         uint64 offset;
 
         // uint8 *begin_addr;
-        fread(&offset, sizeof(uint64), 1, fp);
+        fread(&offset, sizeof(uint32), 1, fp);
         csp->begin_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint8 *target_addr;
-        fread(&offset, sizeof(uint64), 1, fp);
+        fread(&offset, sizeof(uint32), 1, fp);
         csp->target_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint32 *frame_sp;
-        fread(&offset, sizeof(uint64), 1, fp);
+        fread(&offset, sizeof(uint32), 1, fp);
         csp->frame_sp = set_addr_offset(frame->sp_bottom, offset);
 
         // uint32 *frame_tsp
-        fread(&offset, sizeof(uint64), 1, fp);
+        fread(&offset, sizeof(uint32), 1, fp);
         csp->frame_tsp = set_addr_offset(frame->tsp_bottom, offset);
 
         // uint32 cell_num;
