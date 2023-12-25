@@ -260,53 +260,85 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
 }
 
 
+// int
+// wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+// {
+//     WASMModuleInstance *module =
+//         (WASMModuleInstance *)exec_env->module_inst;
+//     WASMFunctionInstance *function;
+
+//     uint32 frame_stack_size = 0;
+//     RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
+
+//     // frame stackのサイズを保存
+//     FILE *fp = open_image("frame.img", "wb");
+//     fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
+//     fclose(fp);
+
+//     // 各フレームの関数インデックスをリスト化
+//     uint32 functions[frame_stack_size];
+//     RevFrame *rf2 = rf;
+//     for (uint32 i = 0; i < frame_stack_size; ++i, rf2 = rf2->next) {
+//         WASMInterpFrame *frame = rf2->frame;
+//         functions[i] = frame->function - module->e->functions;
+//     }
+
+//     // frameをbottomからtopまで走査する
+//     char file[32];
+//     for (uint32 i = 0; i < frame_stack_size; ++i) {
+//         sprintf(file, "stack%d.img", i);
+//         FILE *fp = open_image(file, "wb");
+
+//         WASMInterpFrame *frame = rf->frame;
+//         if (frame == NULL) {
+//             perror("wasm_dump_frame: frame is null\n");
+//             break;
+//         }
+
+//         uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
+//         fwrite(&enter_fidx, sizeof(uint32), 1, fp);
+
+//         if (frame->function != NULL) {
+//             _dump_stack(exec_env, frame, fp);
+//         }
+//         fclose(fp);
+
+//         rf = rf->next;
+//     }
+//     // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
+//     // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", i);
+
+//     return 0;
+// }
+
 int
-wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+wasm_dump_stack2(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 {
     WASMModuleInstance *module =
         (WASMModuleInstance *)exec_env->module_inst;
-    WASMFunctionInstance *function;
 
-    uint32 frame_stack_size = 0;
-    RevFrame *rf = init_rev_frame2(frame, &frame_stack_size);
-
-    // frame stackのサイズを保存
-    FILE *fp = open_image("frame.img", "wb");
-    fwrite(&frame_stack_size, sizeof(uint32), 1, fp);
-    fclose(fp);
-
-    // 各フレームの関数インデックスをリスト化
-    uint32 functions[frame_stack_size];
-    RevFrame *rf2 = rf;
-    for (uint32 i = 0; i < frame_stack_size; ++i, rf2 = rf2->next) {
-        WASMInterpFrame *frame = rf2->frame;
-        functions[i] = frame->function - module->e->functions;
-    }
-
-    // frameをbottomからtopまで走査する
+    // frameをtopからbottomまで走査する
     char file[32];
-    for (uint32 i = 0; i < frame_stack_size; ++i) {
+    int i = 0;
+    do {
+        // dummy framenならbreak
+        if (frame->function == NULL) break;
+
+        ++i;
         sprintf(file, "stack%d.img", i);
         FILE *fp = open_image(file, "wb");
 
-        WASMInterpFrame *frame = rf->frame;
-        if (frame == NULL) {
-            perror("wasm_dump_frame: frame is null\n");
-            break;
-        }
-
-        uint32 enter_fidx = (i+1 < frame_stack_size ? functions[i+1] : -1);
+        uint32 enter_fidx = frame->function - module->e->functions;
         fwrite(&enter_fidx, sizeof(uint32), 1, fp);
 
-        if (frame->function != NULL) {
-            _dump_stack(exec_env, frame, fp);
-        }
+        _dump_stack(exec_env, frame, fp);
         fclose(fp);
+    } while(frame = frame->prev_frame);
 
-        rf = rf->next;
-    }
-    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", frame_stack_size);
-    // fprintf(stdout, "[DEBUG]dump_stack_count: %d\n", i);
+    // frame stackのサイズを保存
+    FILE *fp = open_image("frame.img", "wb");
+    fwrite(&i, sizeof(uint32), 1, fp);
+    fclose(fp);
 
     return 0;
 }
@@ -422,7 +454,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     }
 
     // dump frame
-    rc = wasm_dump_stack(exec_env, frame);
+    rc = wasm_dump_stack2(exec_env, frame);
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;

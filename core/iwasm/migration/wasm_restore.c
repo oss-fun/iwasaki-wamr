@@ -231,7 +231,7 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 }
 
 WASMInterpFrame*
-wasm_restore_stack(WASMExecEnv **_exec_env)
+wasm_restore_stack_old(WASMExecEnv **_exec_env)
 {
     WASMExecEnv *exec_env = *_exec_env;
     WASMModuleInstance *module_inst =
@@ -280,6 +280,61 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
             frame->function = function;
             _restore_stack(exec_env, frame, fp);
         }
+
+        prev_frame = frame;
+        fclose(fp);
+    }
+
+    // debug_wasm_interp_frame(frame, module_inst->e->functions);
+    wasm_exec_env_set_cur_frame(exec_env, frame);
+    
+    _exec_env = &exec_env;
+
+    return frame;
+}
+
+WASMInterpFrame*
+wasm_restore_stack(WASMExecEnv **_exec_env)
+{
+    WASMExecEnv *exec_env = *_exec_env;
+    WASMModuleInstance *module_inst =
+        (WASMModuleInstance *)exec_env->module_inst;
+    WASMInterpFrame *frame, *prev_frame = wasm_exec_env_get_cur_frame(exec_env);
+    frame = prev_frame;
+    WASMFunctionInstance *function;
+    uint32 func_idx, frame_size, all_cell_num;
+    FILE *fp;
+
+    uint32 frame_stack_size;
+    fp = open_image("frame.img", "rb");
+    fread(&frame_stack_size, sizeof(uint32), 1, fp);
+    fclose(fp);
+
+    char file[32];
+    uint32 fidx = 0;
+    for (uint32 i = frame_stack_size-1; i > 0; --i) {
+        sprintf(file, "stack%d.img", i);
+        fp = open_image(file, "rb");
+
+        fread(&fidx, sizeof(uint32), 1, fp);
+        // 関数からスタックサイズを計算し,ALLOC
+        // 前のframe2のenter_func_idxが、このframe->functionに対応
+        function = module_inst->e->functions + fidx;
+
+        // TODO: uint64になってるけど、多分uint32
+        all_cell_num = (uint32)function->param_cell_num
+                        + (uint32)function->local_cell_num
+                        + (uint32)function->u.func->max_stack_cell_num
+                        + ((uint32)function->u.func->max_block_num)
+                                * sizeof(WASMBranchBlock) / 4
+                        + (uint32)function->u.func->max_stack_cell_num;
+        frame_size = wasm_interp_interp_frame_size(all_cell_num);
+        frame = wasm_alloc_frame(exec_env, frame_size,
+                            (WASMInterpFrame *)prev_frame);
+
+        // フレームをrestore
+        frame->function = function;
+        _restore_stack(exec_env, frame, fp);
 
         prev_frame = frame;
         fclose(fp);
