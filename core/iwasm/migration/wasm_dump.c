@@ -230,22 +230,25 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
 
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
-    uint64 addr;
+    uint32 addr;
+    uint8* ip_start = wasm_get_func_code(frame->function);
     for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
         // uint8 *begin_addr;
-        addr = get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function));
+        addr = get_addr_offset(csp->begin_addr, ip_start);
         fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint8 *target_addr;
-        addr = get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function));
+        addr = get_addr_offset(csp->target_addr, ip_start);
         fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint32 *frame_sp;
         addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
+        printf("csp->frame_sp: %d\n", addr);
         fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint32 *frame_tsp;
         addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
+        printf("csp->frame_tsp: %d\n", addr);
         fwrite(&addr, sizeof(uint32), 1, fp);
         
         // uint32 cell_num;
