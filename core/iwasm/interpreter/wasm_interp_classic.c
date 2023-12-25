@@ -344,7 +344,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         *(int32 *)frame_tsp++ = (int32)(2);\
     } while (0)
 
-#define PUSH_CSP(_label_type, param_cell_num, pram_count, cell_num, ret_count, _target_addr) \
+
+#define PUSH_CSP(_label_type, param_cell_num, param_count, cell_num, ret_count, _target_addr) \
     do {                                                              \
         bh_assert(frame_csp < frame->csp_boundary);                   \
         /* frame_csp->label_type = _label_type; */                    \
