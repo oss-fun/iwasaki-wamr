@@ -102,12 +102,14 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     int i;
     WASMModuleInstance *module = exec_env->module_inst;
 
-    // Enter function
+    // Entry function
     // wasm_dump_stackの方でdump
 
     // リターンアドレス
-    uint32 fidx = frame->function - module->e->functions;
-    uint32 offset = frame->ip - wasm_get_func_code(frame->function);
+    // NOTE: 1番下のframeのときだけ、prev_frameではなくframeのリターンアドレスを出力する
+    WASMInterpFrame* prev_frame = (frame->prev_frame->function ? frame->prev_frame : frame);
+    uint32 fidx = prev_frame->function - module->e->functions;
+    uint32 offset = prev_frame->ip - wasm_get_func_code(prev_frame->function);
     fwrite(&fidx, sizeof(uint32), 1, fp);
     fwrite(&offset, sizeof(uint32), 1, fp);
 
@@ -219,8 +221,8 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         sprintf(file, "stack%d.img", i);
         FILE *fp = open_image(file, "wb");
 
-        uint32 enter_fidx = frame->function - module->e->functions;
-        fwrite(&enter_fidx, sizeof(uint32), 1, fp);
+        uint32 entry_fidx = frame->function - module->e->functions;
+        fwrite(&entry_fidx, sizeof(uint32), 1, fp);
 
         _dump_stack(exec_env, frame, fp);
         fclose(fp);
