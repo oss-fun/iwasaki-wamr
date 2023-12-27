@@ -1360,6 +1360,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             perror("failed to restore\n");
             return;
         }
+        frame->ip = frame_ip;
         linear_mem_size = memory ? memory->memory_data_size : 0;
 
         frame_lp = frame->lp;

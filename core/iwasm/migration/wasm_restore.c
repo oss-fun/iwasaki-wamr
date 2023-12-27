@@ -157,11 +157,12 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     frame->tsp_boundary = frame->tsp_bottom + func->u.func->max_stack_cell_num;
 
     // リターンアドレス
+    WASMInterpFrame* prev_frame = frame->prev_frame;
     uint32 fidx, offset;
     fread(&fidx, sizeof(uint32), 1, fp);
     fread(&offset, sizeof(uint32), 1, fp);
-    frame->function = module_inst->e->functions + fidx;
-    frame->ip = wasm_get_func_code(frame->function) + offset;
+    if (prev_frame->function != NULL)
+        prev_frame->ip = wasm_get_func_code(prev_frame->function) + offset;
 
     // 型スタックのサイズ
     uint32 locals = func->param_count + func->local_count;
@@ -179,7 +180,6 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         fread(&type, sizeof(uint8), 1, fp);
         *(tsp_bottom+i) = type;
     }
-    // fread(frame->tsp_bottom, sizeof(uint8), type_stack_size, fp);
 
     // 値スタックのサイズ
     uint32 *tsp = frame->tsp_bottom;
@@ -249,7 +249,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
 
     char file[32];
     uint32 fidx = 0;
-    for (uint32 i = frame_stack_size-1; i > 0; --i) {
+    for (uint32 i = frame_stack_size; i > 0; --i) {
         sprintf(file, "stack%d.img", i);
         fp = open_image(file, "rb");
 
