@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
@@ -12,6 +13,13 @@
         if (*p & 0x80)p++;              \
         else break;                     \
     }                                   \
+
+int64_t get_time(struct timespec ts1, struct timespec ts2) {
+  int64_t sec = ts2.tv_sec - ts1.tv_sec;
+  int64_t nsec = ts2.tv_nsec - ts1.tv_nsec;
+  // std::cerr << sec << ", " << nsec << std::endl;
+  return sec * 1e9 + nsec;
+}
 
 /* common_functions */
 int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
@@ -325,29 +333,42 @@ int wasm_dump(WASMExecEnv *exec_env,
          bool done_flag)
 {
     int rc;
+    struct timespec ts1, ts2;
     // dump linear memory
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_memory(memory);
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump linear memory\n");
         return rc;
     }
 
     // dump globals
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_global(module, globals, global_data);
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump globals\n");
         return rc;
     }
 
     // dump program counter
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_program_counter(module, cur_func, frame_ip);
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump program_counter\n");
         return rc;
     }
 
-    // dump frame
+    // dump stack
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_stack(exec_env, frame);
+    clock_gettime(CLOCK_MONOTONIC, &ts2);
+    fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;
