@@ -29,6 +29,7 @@ typedef float32 CellType_F32;
 typedef float64 CellType_F64;
 
 #define BR_TABLE_TMP_BUF_LEN 32
+#define WASM_ENABLE_TYPE_STACK 0
 
 #if WASM_ENABLE_THREAD_MGR == 0
 #define get_linear_mem_size() linear_mem_size
@@ -318,12 +319,52 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 
 #define skip_leb(p) while (*p++ & 0x80)
 
+#if WASM_ENABLE_TYPE_STACK == 0
 #define PUSH_I32(value)                        \
     do {                                       \
         *(int32 *)frame_sp++ = (int32)(value); \
-        *(int32 *)frame_tsp++ = (int32)(1);    \
+    } while (0)
+#define PUSH_F32(value)                            \
+    do {                                           \
+        *(float32 *)frame_sp++ = (float32)(value); \
     } while (0)
 
+#define PUSH_I64(value)                   \
+    do {                                  \
+        PUT_I64_TO_ADDR(frame_sp, value); \
+        frame_sp += 2;                    \
+    } while (0)
+
+#define PUSH_F64(value)                   \
+    do {                                  \
+        PUT_F64_TO_ADDR(frame_sp, value); \
+        frame_sp += 2;                    \
+    } while (0)
+
+#define PUSH_CSP(_label_type, param_cell_num, param_count, cell_num, ret_count, _target_addr) \
+    do {                                                              \
+        bh_assert(frame_csp < frame->csp_boundary);                   \
+        /* frame_csp->label_type = _label_type; */                    \
+        frame_csp->cell_num = cell_num;                               \
+        frame_csp->begin_addr = frame_ip;                             \
+        frame_csp->target_addr = _target_addr;                        \
+        frame_csp->frame_sp = frame_sp - param_cell_num;              \
+        frame_csp++;                                                  \
+    } while (0)
+
+#define POP_I32() (--frame_sp, *(int32 *)frame_sp)
+
+#define POP_F32() (--frame_sp, *(float32 *)frame_sp)
+
+#define POP_I64() (frame_sp -= 2, GET_I64_FROM_ADDR(frame_sp))
+
+#define POP_F64() (frame_sp -= 2, GET_F64_FROM_ADDR(frame_sp))
+
+#else
+#define PUSH_I32(value)                        \
+    do {                                       \
+        *(int32 *)frame_sp++ = (int32)(value); \
+    } while (0)
 #define PUSH_F32(value)                            \
     do {                                           \
         *(float32 *)frame_sp++ = (float32)(value); \
@@ -343,7 +384,6 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_sp += 2;                    \
         *(int32 *)frame_tsp++ = (int32)(2);\
     } while (0)
-
 
 #define PUSH_CSP(_label_type, param_cell_num, param_count, cell_num, ret_count, _target_addr) \
     do {                                                              \
@@ -365,6 +405,8 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 #define POP_I64() (frame_sp -= 2, --frame_tsp, GET_I64_FROM_ADDR(frame_sp))
 
 #define POP_F64() (frame_sp -= 2, --frame_tsp, GET_F64_FROM_ADDR(frame_sp))
+#endif
+
 
 #define POP_CSP_CHECK_OVERFLOW(n)                      \
     do {                                               \
@@ -381,6 +423,31 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         --frame_csp;               \
     } while (0)
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define POP_CSP_N(n)                                             \
+    do {                                                         \
+        uint32 *frame_sp_old = frame_sp;                         \
+        uint32 cell_num_to_copy;                                 \
+        POP_CSP_CHECK_OVERFLOW(n + 1);                           \
+        frame_csp -= n;                                          \
+        frame_ip = (frame_csp - 1)->target_addr;                 \
+        /* copy arity values of block */                         \
+        frame_sp = (frame_csp - 1)->frame_sp;                    \
+        cell_num_to_copy = (frame_csp - 1)->cell_num;            \
+        if (cell_num_to_copy > 0) {                              \
+            word_copy(frame_sp, frame_sp_old - cell_num_to_copy, \
+                      cell_num_to_copy);                         \
+        }                                                        \
+        frame_sp += cell_num_to_copy;                            \
+    } while (0)
+
+/* Pop the given number of elements from the given frame's stack.  */
+#define POP(cell_num, count)         \
+    do {                             \
+        int n = (cell_num);          \
+        frame_sp -= n;               \
+    } while (0)
+#else
 #define POP_CSP_N(n)                                             \
     do {                                                         \
         uint32 *frame_sp_old = frame_sp;                         \
@@ -416,7 +483,23 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_sp -= n;               \
         frame_tsp -= m;              \
     } while (0)
+#endif
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define SYNC_ALL_TO_FRAME()     \
+    do {                        \
+        frame->sp = frame_sp;   \
+        frame->ip = frame_ip;   \
+        frame->csp = frame_csp; \
+    } while (0)
+
+#define UPDATE_ALL_FROM_FRAME() \
+    do {                        \
+        frame_sp = frame->sp;   \
+        frame_ip = frame->ip;   \
+        frame_csp = frame->csp; \
+    } while (0)
+#else
 #define SYNC_ALL_TO_FRAME()     \
     do {                        \
         frame->sp = frame_sp;   \
@@ -432,6 +515,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_csp = frame->csp; \
         frame_tsp = frame->tsp; \
     } while (0)
+#endif
 
 #define read_leb_int64(p, p_end, res)              \
     do {                                           \
@@ -484,6 +568,19 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
 #define RECOVER_FRAME_IP_END() (void)0
 #endif
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define RECOVER_CONTEXT(new_frame)      \
+    do {                                \
+        frame = (new_frame);            \
+        cur_func = frame->function;     \
+        prev_frame = frame->prev_frame; \
+        frame_ip = frame->ip;           \
+        RECOVER_FRAME_IP_END();         \
+        frame_lp = frame->lp;           \
+        frame_sp = frame->sp;           \
+        frame_csp = frame->csp;         \
+    } while (0)
+#else
 #define RECOVER_CONTEXT(new_frame)      \
     do {                                \
         frame = (new_frame);            \
@@ -496,6 +593,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         frame_tsp = frame->tsp;         \
         frame_csp = frame->csp;         \
     } while (0)
+#endif
 
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 #define GET_OPCODE() opcode = *(frame_ip - 1);
@@ -535,6 +633,14 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         PUSH_##src_op_type(val2);                          \
     } while (0)
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define DEF_OP_NUMERIC(src_type1, src_type2, src_op_type, operation)  \
+    do {                                                              \
+        frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
+        *(src_type1 *)(frame_sp - sizeof(src_type1) / sizeof(uint32)) \
+            operation## = *(src_type2 *)(frame_sp);                   \
+    } while (0)
+#else
 #define DEF_OP_NUMERIC(src_type1, src_type2, src_op_type, operation)  \
     do {                                                              \
         frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
@@ -544,25 +650,58 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         *frame_tsp = (sizeof(src_type1) / 4);                         \
         frame_tsp++;                                                  \
     } while (0)
+#endif
 
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
 #define DEF_OP_NUMERIC_64 DEF_OP_NUMERIC
 #else
-#define DEF_OP_NUMERIC_64(src_type1, src_type2, src_op_type, operation) \
-    do {                                                                \
-        src_type1 val1;                                                 \
-        src_type2 val2;                                                 \
-        frame_sp -= 2;                                                  \
-        val1 = (src_type1)GET_##src_op_type##_FROM_ADDR(frame_sp - 2);  \
-        val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);      \
-        val1 operation## = val2;                                        \
-        PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                \
-        frame_tsp -= 2;                                                 \
-        *frame_tsp = (sizeof(src_type1) / 4);                           \
-        frame_tsp++;                                                    \
-    } while (0)
+    #if WASM_ENABLE_TYPE_STACK == 0
+    #define DEF_OP_NUMERIC_64(src_type1, src_type2, src_op_type, operation) \
+        do {                                                                \
+            src_type1 val1;                                                 \
+            src_type2 val2;                                                 \
+            frame_sp -= 2;                                                  \
+            val1 = (src_type1)GET_##src_op_type##_FROM_ADDR(frame_sp - 2);  \
+            val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);      \
+            val1 operation## = val2;                                        \
+            PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                \
+        } while (0)
+    #else
+    #define DEF_OP_NUMERIC_64(src_type1, src_type2, src_op_type, operation) \
+        do {                                                                \
+            src_type1 val1;                                                 \
+            src_type2 val2;                                                 \
+            frame_sp -= 2;                                                  \
+            val1 = (src_type1)GET_##src_op_type##_FROM_ADDR(frame_sp - 2);  \
+            val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);      \
+            val1 operation## = val2;                                        \
+            PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                \
+            frame_tsp -= 2;                                                 \
+            *frame_tsp = (sizeof(src_type1) / 4);                           \
+            frame_tsp++;                                                    \
+        } while (0)
+    #endif
 #endif
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define DEF_OP_NUMERIC2(src_type1, src_type2, src_op_type, operation) \
+    do {                                                              \
+        frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
+        *(src_type1 *)(frame_sp - sizeof(src_type1) / sizeof(uint32)) \
+            operation## = (*(src_type2 *)(frame_sp) % 32);            \
+    } while (0)
+
+#define DEF_OP_NUMERIC2_64(src_type1, src_type2, src_op_type, operation) \
+    do {                                                                 \
+        src_type1 val1;                                                  \
+        src_type2 val2;                                                  \
+        frame_sp -= 2;                                                   \
+        val1 = (src_type1)GET_##src_op_type##_FROM_ADDR(frame_sp - 2);   \
+        val2 = (src_type2)GET_##src_op_type##_FROM_ADDR(frame_sp);       \
+        val1 operation## = (val2 % 64);                                  \
+        PUT_##src_op_type##_TO_ADDR(frame_sp - 2, val1);                 \
+    } while (0)
+#else
 #define DEF_OP_NUMERIC2(src_type1, src_type2, src_op_type, operation) \
     do {                                                              \
         frame_sp -= sizeof(src_type2) / sizeof(uint32);               \
@@ -586,6 +725,7 @@ read_leb(const uint8 *buf, uint32 *p_offset, uint32 maxbits, bool sign)
         *frame_tsp = (sizeof(src_type1) / 4);                            \
         frame_tsp++;                                                     \
     } while (0)
+#endif
 
 #define DEF_OP_MATH(src_type, src_op_type, method) \
     do {                                           \
@@ -620,8 +760,9 @@ TRUNC_FUNCTION(trunc_f32_to_i64, float32, uint64, int64)
 TRUNC_FUNCTION(trunc_f64_to_i32, float64, uint32, int32)
 TRUNC_FUNCTION(trunc_f64_to_i64, float64, uint64, int64)
 
+#if WASM_ENABLE_TYPE_STACK == 0
 static bool
-trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp, float32 src_min,
+trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, float32 src_min,
                  float32 src_max, bool saturating, bool is_i32, bool is_sign)
 {
     float32 src_value = POP_F32();
@@ -657,6 +798,77 @@ trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp
 }
 
 static bool
+trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, float64 src_min,
+                 float64 src_max, bool saturating, bool is_i32, bool is_sign)
+{
+    float64 src_value = POP_F64();
+    uint64 dst_value_i64;
+    uint32 dst_value_i32;
+
+    if (!saturating) {
+        if (isnan(src_value)) {
+            wasm_set_exception(module, "invalid conversion to integer");
+            return false;
+        }
+        else if (src_value <= src_min || src_value >= src_max) {
+            wasm_set_exception(module, "integer overflow");
+            return false;
+        }
+    }
+
+    if (is_i32) {
+        uint32 dst_min = is_sign ? INT32_MIN : 0;
+        uint32 dst_max = is_sign ? INT32_MAX : UINT32_MAX;
+        dst_value_i32 = trunc_f64_to_i32(src_value, src_min, src_max, dst_min,
+                                         dst_max, is_sign);
+        PUSH_I32(dst_value_i32);
+    }
+    else {
+        uint64 dst_min = is_sign ? INT64_MIN : 0;
+        uint64 dst_max = is_sign ? INT64_MAX : UINT64_MAX;
+        dst_value_i64 = trunc_f64_to_i64(src_value, src_min, src_max, dst_min,
+                                         dst_max, is_sign);
+        PUSH_I64(dst_value_i64);
+    }
+    return true;
+}
+#else
+static bool
+trunc_f32_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp, float32 src_min,
+                 float32 src_max, bool saturating, bool is_i32, bool is_sign)
+{
+    float32 src_value = POP_F32();
+    uint64 dst_value_i64;
+    uint32 dst_value_i32;
+
+    if (!saturating) {
+        if (isnan(src_value)) {
+            wasm_set_exception(module, "invalid conversion to integer");
+            return false;
+        }
+        else if (src_value <= src_min || src_value >= src_max) {
+            wasm_set_exception(module, "integer overflow");
+            return false;
+        }
+    }
+
+    if (is_i32) {
+        uint32 dst_min = is_sign ? INT32_MIN : 0;
+        uint32 dst_max = is_sign ? INT32_MAX : UINT32_MAX;
+        dst_value_i32 = trunc_f32_to_i32(src_value, src_min, src_max, dst_min,
+                                         dst_max, is_sign);
+        PUSH_I32(dst_value_i32);
+    }
+    else {
+        uint64 dst_min = is_sign ? INT64_MIN : 0;
+        uint64 dst_max = is_sign ? INT64_MAX : UINT64_MAX;
+        dst_value_i64 = trunc_f32_to_i64(src_value, src_min, src_max, dst_min,
+                                         dst_max, is_sign);
+        PUSH_I64(dst_value_i64);
+    }
+    return true;
+}
+static bool
 trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp, float64 src_min,
                  float64 src_max, bool saturating, bool is_i32, bool is_sign)
 {
@@ -691,7 +903,35 @@ trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp
     }
     return true;
 }
+#endif
 
+#if WASM_ENABLE_TYPE_STACK == 0
+#define DEF_OP_TRUNC_F32(min, max, is_i32, is_sign)                      \
+    do {                                                                 \
+        if (!trunc_f32_to_int(module, frame_sp, min, max, false, is_i32, \
+                              is_sign))                                  \
+            goto got_exception;                                          \
+    } while (0)
+
+#define DEF_OP_TRUNC_F64(min, max, is_i32, is_sign)                      \
+    do {                                                                 \
+        if (!trunc_f64_to_int(module, frame_sp, min, max, false, is_i32, \
+                              is_sign))                                  \
+            goto got_exception;                                          \
+    } while (0)
+
+#define DEF_OP_TRUNC_SAT_F32(min, max, is_i32, is_sign)                  \
+    do {                                                                 \
+        (void)trunc_f32_to_int(module, frame_sp, min, max, true, is_i32, \
+                               is_sign);                                 \
+    } while (0)
+
+#define DEF_OP_TRUNC_SAT_F64(min, max, is_i32, is_sign)                  \
+    do {                                                                 \
+        (void)trunc_f64_to_int(module, frame_sp, min, max, true, is_i32, \
+                               is_sign);                                 \
+    } while (0)
+#else
 #define DEF_OP_TRUNC_F32(min, max, is_i32, is_sign)                      \
     do {                                                                 \
         if (!trunc_f32_to_int(module, frame_sp, frame_tsp, min, max, false, is_i32, \
@@ -717,6 +957,7 @@ trunc_f64_to_int(WASMModuleInstance *module, uint32 *frame_sp, uint32 *frame_tsp
         (void)trunc_f64_to_int(module, frame_sp, frame_tsp, min, max, true, is_i32, \
                                is_sign);                                 \
     } while (0)
+#endif
 
 #define DEF_OP_CONVERT(dst_type, dst_op_type, src_type, src_op_type) \
     do {                                                             \
@@ -1193,25 +1434,25 @@ do {                                                                    \
     } while (0)
 #else
 uint32 tsp_size, sp_size;
-#if BH_DEBUG != 0
-#define CHECK_TYPE_STACK()                                                  \
-    LOG_VERBOSE("ip: 0x%x\n", *frame_ip);                                   \
-    tsp_size = frame_tsp - frame->tsp_bottom;                               \
-    sp_size = frame_sp - frame->sp_bottom;                                  \
-    if (sp_size < tsp_size                                                  \
-        || (sp_size == 0 && tsp_size > 0)                                   \
-        || (sp_size > 0 && tsp_size == 0)) {                                \
-       uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(cur_func), frame_ip); \
-       printf("fidx: %d\n", fidx);                                          \
-       printf("code line: %d\n", ip_ofs);                                   \
-       printf("ip: 0x%x\n", *frame_ip);                                     \
-       printf("frame_tsp size: %ld\n", frame_tsp-frame->tsp_bottom);        \
-       printf("frame_sp size: %ld\n", frame_sp-frame->sp_bottom);           \
-       bh_assert(0);                                                        \
-    }
-#else
-#define CHECK_TYPE_STACK()
-#endif
+// #if BH_DEBUG != 0
+// #define CHECK_TYPE_STACK()                                                  \
+//     LOG_VERBOSE("ip: 0x%x\n", *frame_ip);                                   \
+//     tsp_size = frame_tsp - frame->tsp_bottom;                               \
+//     sp_size = frame_sp - frame->sp_bottom;                                  \
+//     if (sp_size < tsp_size                                                  \
+//         || (sp_size == 0 && tsp_size > 0)                                   \
+//         || (sp_size > 0 && tsp_size == 0)) {                                \
+//        uint32 ip_ofs = get_opcode_offset(wasm_get_func_code(cur_func), frame_ip); \
+//        printf("fidx: %d\n", fidx);                                          \
+//        printf("code line: %d\n", ip_ofs);                                   \
+//        printf("ip: 0x%x\n", *frame_ip);                                     \
+//        printf("frame_tsp size: %ld\n", frame_tsp-frame->tsp_bottom);        \
+//        printf("frame_sp size: %ld\n", frame_sp-frame->sp_bottom);           \
+//        bh_assert(0);                                                        \
+//     }
+// #else
+// #define CHECK_TYPE_STACK()
+// #endif
 
 #define HANDLE_OP_END()                                                     \
     do {                                                                    \
