@@ -153,7 +153,6 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     fread(stack, sizeof(uint8), stack_size, type_table);
 
     if (is_return_address) {
-        printf("is_return_addr\n");
         fread(&stack_size, sizeof(uint32), 1, type_table);
         fread(stack, sizeof(uint8), stack_size, type_table);
     }
@@ -163,12 +162,12 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     for (uint32 i = 0; i < locals_size; ++i) type_stack[i] = locals[i];
     for (uint32 i = 0; i < stack_size; ++i) type_stack[locals_size + i] = stack[i];
 
-    printf("new type stack: [");
-    for (uint32 i = 0; i < locals_size + stack_size; ++i) {
-        if (i+1 == locals_size + stack_size)printf("%d", type_stack[i]);
-        else                                printf("%d, ", type_stack[i]);
-    }
-    printf("]\n");
+    // printf("new type stack: [");
+    // for (uint32 i = 0; i < locals_size + stack_size; ++i) {
+    //     if (i+1 == locals_size + stack_size)printf("%d", type_stack[i]);
+    //     else                                printf("%d, ", type_stack[i]);
+    // }
+    // printf("]\n");
 
     fclose(tablemap_func);
     fclose(tablemap_offset);
@@ -207,7 +206,7 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     uint32 type_stack_size_from_file;
     uint32 fidx_now = frame->function - module->e->functions;
     uint32 offset_now = frame->ip - wasm_get_func_code(frame->function);
-    printf("[DEBUG]now addr: (%d, %d)\n", fidx_now, offset_now);
+    // printf("[DEBUG]now addr: (%d, %d)\n", fidx_now, offset_now);
     uint8* type_stack_from_file = get_type_stack(fidx_now, offset_now, &type_stack_size_from_file, !is_top);
 
     uint8 type_stack_locals[locals];
