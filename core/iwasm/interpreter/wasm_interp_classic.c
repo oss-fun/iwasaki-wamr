@@ -1101,10 +1101,23 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
         goto migration_async;                                               \
     }
 
+uint64_t opcode_total_time[256];
+uint64_t opcode_call_count[256];
+struct timespec prev_ts, ts;
+
+#define MEASURE_OPCODE()                                                    \
+    do {                                                                    \
+        clock_gettime(CLOCK_MONOTONIC, &ts);                               \
+        opcode_total_time[*frame_ip] += get_time(prev_ts, ts);              \
+        opcode_call_count[*frame_ip]++;                                     \
+        prev_ts = ts;                                                       \
+    } while(0);
+
 // #define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++]
 #define FETCH_OPCODE_AND_DISPATCH()                                     \
 do {                                                                    \
     CHECK_DUMP()                                                        \
+    MEASURE_OPCODE();                                                   \
     goto *handle_table[*frame_ip++];                                    \
 } while(0);
 
@@ -4453,6 +4466,13 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
         if (running_mode == Mode_Interp) {
             wasm_interp_call_func_bytecode(module_inst, exec_env, function,
                                            frame);
+            for (uint32_t i = 0; i < 256; ++i) {
+                if (opcode_call_count[i] == 0) continue;
+                fprintf(stderr, "OpCode: 0x%x\n", i);
+                fprintf(stderr, "\tTotal Time: %d\n", opcode_total_time[i]);
+                fprintf(stderr, "\tCall Count: %d\n", opcode_call_count[i]);
+                fprintf(stderr, "\tAverage Time: %lf\n", (double)(opcode_total_time[i] / opcode_call_count[i]));
+            }
         }
 #if WASM_ENABLE_FAST_JIT != 0
         else if (running_mode == Mode_Fast_JIT) {
