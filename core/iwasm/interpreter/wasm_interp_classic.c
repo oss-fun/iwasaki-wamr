@@ -1101,14 +1101,42 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
         goto migration_async;                                               \
     }
 
-double opcode_total_time[256];
+struct timespec2 {
+    int32_t sec;
+    int64_t nsec;
+};
+
+struct timespec2 get_time_sec(struct timespec ts1, struct timespec ts2) {
+  uint32_t sec = ts2.tv_sec - ts1.tv_sec;
+  uint64_t nsec = ts2.tv_nsec - ts1.tv_nsec;
+
+  if (nsec >= 1e9) {
+    nsec -= 1e9;
+    sec++;
+  }
+  // std::cerr << sec << ", " << nsec << std::endl;
+
+  struct timespec2 s;
+  s.sec = sec;
+  s.nsec = nsec;
+  return s;
+}
+
+uint32_t opcode_total_sec[256];
+uint64_t opcode_total_nsec[256];
 uint64_t opcode_call_count[256];
 struct timespec prev_ts, ts;
 
 #define MEASURE_OPCODE()                                                    \
     do {                                                                    \
-        clock_gettime(CLOCK_MONOTONIC, &ts);                               \
-        opcode_total_time[*frame_ip] += (double)get_time(prev_ts, ts) / (double)1e6;              \
+        clock_gettime(CLOCK_MONOTONIC, &ts);                                \
+        struct timespec2 t = get_time_sec(prev_ts, ts);                     \
+        opcode_total_sec[*frame_ip] += t.sec;                               \
+        opcode_total_nsec[*frame_ip] += t.nsec;                             \
+        if (opcode_total_nsec[*frame_ip] >= 1e9) {                          \
+            opcode_total_nsec[*frame_ip] -= 1e9;                            \
+            opcode_total_sec[*frame_ip]++;                                  \
+        }                                                                   \
         opcode_call_count[*frame_ip]++;                                     \
         prev_ts = ts;                                                       \
     } while(0);
@@ -1313,6 +1341,12 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         frame_lp = frame->lp;
         UPDATE_ALL_FROM_FRAME();
         FETCH_OPCODE_AND_DISPATCH();
+    }
+
+    for (int i = 0; i < 256; ++i) {
+        opcode_call_count[i] = 0;
+        opcode_total_sec[i] = 0;
+        opcode_total_nsec[i] = 0;
     }
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0
@@ -4469,9 +4503,10 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
             for (uint32_t i = 0; i < 256; ++i) {
                 if (opcode_call_count[i] == 0) continue;
                 fprintf(stderr, "OpCode: 0x%x\n", i);
-                fprintf(stderr, "\tTotal Time: %lf\n", opcode_total_time[i]);
+                fprintf(stderr, "\tTotal Time: %u.%08lu\n", opcode_total_sec[i], opcode_total_nsec[i]);
+                // fprintf(stderr, "\tTotal Time[sec]: %u\n", opcode_total_sec[i]);
+                // fprintf(stderr, "\tTotal Time[nsec]: %lu\n", opcode_total_nsec[i]);
                 fprintf(stderr, "\tCall Count: %d\n", opcode_call_count[i]);
-                fprintf(stderr, "\tAverage Time: %lf\n", (double)(opcode_total_time[i] / (double)opcode_call_count[i]));
             }
         }
 #if WASM_ENABLE_FAST_JIT != 0
