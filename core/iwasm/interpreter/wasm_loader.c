@@ -4918,6 +4918,9 @@ fail:
 #if WASM_ENABLE_FAST_INTERP != 0
 
 #if WASM_DEBUG_PREPROCESSOR != 0
+#define HANDLE_OPCODE(opcode) #opcode
+DEFINE_GOTO_TABLE(const char *, opcode_names);
+#undef HANDLE_OPCODE
 #define LOG_OP(...) os_printf(__VA_ARGS__)
 #else
 #define LOG_OP(...) (void)0
@@ -5415,7 +5418,7 @@ fail:
 #define emit_label(opcode)                                      \
     do {                                                        \
         wasm_loader_emit_ptr(loader_ctx, handle_table[opcode]); \
-        LOG_OP("\nemit_op [%02x]\t", opcode);                   \
+        LOG_OP("\nemit_op [%s]\t", opcode_names[opcode]);       \
     } while (0)
 #define skip_label()                                            \
     do {                                                        \
