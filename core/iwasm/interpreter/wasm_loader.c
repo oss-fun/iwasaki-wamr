@@ -10041,7 +10041,9 @@ re_scan:
 #if WASM_ENABLE_FAST_INTERP != 0
         last_op = opcode;
         // TODO: uint8* は32bit以下の値を取るのか?
-        ir_offsets_to_wasm_offsets_table[cur_func_idx][(uint32)loader_ctx->p_code_compiled] = (uint32)p_org;
+        uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
+        uint32 wasm_pos = p_org - func->code;
+        ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = wasm_pos;
 #endif
     }
 
