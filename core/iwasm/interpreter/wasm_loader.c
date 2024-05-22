@@ -22,6 +22,10 @@
 #include "../compilation/aot_llvm.h"
 #endif
 
+#if WASM_ENABLE_FAST_INTERP != 0 && WASM_ENABLE_LABELS_AS_VALUES != 0
+static uint32 **ir_offsets_to_wasm_offsets_table;
+#endif
+
 /* Read a value of given type from the address pointed to by the given
    pointer and increase the pointer to the position just after the
    value being read.  */
@@ -1715,6 +1719,7 @@ load_function_section(const uint8 *buf, const uint8 *buf_end,
     WASMFunction *func;
 
     read_leb_uint32(p, p_end, func_count);
+    ir_offsets_to_wasm_offsets_table = (uint32 **)calloc(func_count, sizeof(uint32 *));
 
     if (buf_code)
         read_leb_uint32(p_code, buf_code_end, code_count);
@@ -7119,6 +7124,7 @@ wasm_loader_prepare_bytecode(WASMModule *module, WASMFunction *func,
         goto fail;
     }
 
+
 #if WASM_ENABLE_FAST_INTERP != 0
     /* For the first traverse, the initial value of preserved_local_offset has
      * not been determined, we use the INT16_MAX to represent that a slot has
@@ -7142,6 +7148,7 @@ re_scan:
     }
 #endif
 
+    ir_offsets_to_wasm_offsets_table[cur_func_idx] = (uint32 *)calloc(func->code_compiled_size, sizeof(uint32));
     PUSH_CSP(LABEL_TYPE_FUNCTION, func_block_type, p);
 
     while (p < p_end) {
