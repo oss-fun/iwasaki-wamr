@@ -7148,10 +7148,11 @@ re_scan:
         p = func->code;
         func->code_compiled = loader_ctx->p_code_compiled;
         func->code_compiled_size = loader_ctx->code_compiled_size;
+        ir_offsets_to_wasm_offsets_table[cur_func_idx] = 
+            (uint32 *)calloc(func->code_compiled_size+1, sizeof(uint32));
     }
 #endif
 
-    ir_offsets_to_wasm_offsets_table[cur_func_idx] = (uint32 *)calloc(func->code_compiled_size, sizeof(uint32));
     PUSH_CSP(LABEL_TYPE_FUNCTION, func_block_type, p);
 
     while (p < p_end) {
@@ -10043,10 +10044,18 @@ re_scan:
 
 #if WASM_ENABLE_FAST_INTERP != 0
         last_op = opcode;
-        // TODO: uint8* は32bit以下の値を取るのか?
-        uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
-        uint32 wasm_pos = p_org - func->code;
-        ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = wasm_pos;
+        if (func->code_compiled_size > 0) {
+            // TODO: uint8* は32bit以下の値を取るのか?
+            uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
+            uint32 wasm_pos = p_org - func->code;
+            printf("cur_func_idx: %d\n", cur_func_idx);
+            printf("opcode: %#x\n", opcode);
+            printf("ir_pos: %d\n", ir_pos);
+            printf("wasm_pos: %d\n", wasm_pos);
+            printf("code_compiled_size: %d\n", func->code_compiled_size);
+            printf("\n");
+            ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = wasm_pos;
+        }
 #endif
     }
 
