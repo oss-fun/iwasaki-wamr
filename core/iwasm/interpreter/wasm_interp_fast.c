@@ -1119,7 +1119,6 @@ wasm_interp_dump_op_count()
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
         uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
-        fprintf(stderr, "ir: %d\n", ir_pos);           \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \
