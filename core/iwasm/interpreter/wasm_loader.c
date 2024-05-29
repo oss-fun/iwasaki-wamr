@@ -7155,10 +7155,10 @@ re_scan:
 
     PUSH_CSP(LABEL_TYPE_FUNCTION, func_block_type, p);
 
-#if WASM_ENABLE_FAST_INTERP != 0
-    // if (func->code_compiled_size > 0) {
-    //     fprintf(stderr, "cur_func_idx: %d\n", cur_func_idx);
-    // }
+#if WASM_ENABLE_FAST_INTERP != 0 && BH_DEBUG != 0
+    if (func->code_compiled_size > 0) {
+        LOG_VERBOSE("cur_func_idx: %d\n", cur_func_idx);
+    }
 #endif
     while (p < p_end) {
         // NOTE: 関数の先頭がまだ実行されてコード位置を0で表現するために、wasm_posは1-indexedにする。
@@ -10053,8 +10053,7 @@ re_scan:
         last_op = opcode;
         if (func->code_compiled_size > 0) {
             uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
-            // fprintf(stderr, "(opcode, wasm_pos): %#x, %d\n", opcode, wasm_pos);
-            // printf("ir_pos: %d\n", ir_pos);
+            LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, ir_pos);
             ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = wasm_pos;
         }
 #endif
