@@ -1118,7 +1118,7 @@ wasm_interp_dump_op_count()
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
-        uint32 ir_pos = (uint64)frame_ip - (uint64)frame_ip_top;          \
+        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
         fprintf(stderr, "ir: %d\n", ir_pos);           \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
@@ -3636,7 +3636,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             {
                 frame = prev_frame;
                 frame_ip = frame->ip;
-                frame_ip_top = frame_ip;
                 goto call_func_from_entry;
             }
 
