@@ -1716,7 +1716,7 @@ load_function_section(const uint8 *buf, const uint8 *buf_end,
     WASMFunction *func;
 
     read_leb_uint32(p, p_end, func_count);
-    ir_offsets_to_wasm_offsets_table = (uint32 **)calloc(func_count, sizeof(uint32 *));
+    ir_offsets_to_wasm_offsets_table = (uint32 **)calloc(func_count + module->import_function_count, sizeof(uint32 *));
 
     if (buf_code)
         read_leb_uint32(p_code, buf_code_end, code_count);
@@ -7103,6 +7103,7 @@ wasm_loader_prepare_bytecode(WASMModule *module, WASMFunction *func,
     bool disable_emit, preserve_local = false, if_condition_available = true;
     float32 f32_const;
     float64 f64_const;
+    uint32 import_based_cur_func_idx = cur_func_idx + module->import_function_count;
 
     LOG_OP("\nProcessing func | [%d] params | [%d] locals | [%d] return\n",
            func->param_cell_num, func->local_cell_num, func->ret_cell_num);
@@ -7145,7 +7146,7 @@ re_scan:
         p = func->code;
         func->code_compiled = loader_ctx->p_code_compiled;
         func->code_compiled_size = loader_ctx->code_compiled_size;
-        ir_offsets_to_wasm_offsets_table[cur_func_idx] = 
+        ir_offsets_to_wasm_offsets_table[import_based_cur_func_idx] = 
             (uint32 *)calloc(func->code_compiled_size+1, sizeof(uint32));
     }
 #endif
@@ -7155,7 +7156,7 @@ re_scan:
 #if WASM_ENABLE_FAST_INTERP != 0
     uint32 prev_ir_pos = 0;
     if (func->code_compiled_size > 0) {
-        LOG_VERBOSE("cur_func_idx: %d\n", cur_func_idx);
+        LOG_VERBOSE("cur_func_idx: %d\n", import_based_cur_func_idx);
     }
 #endif
     while (p < p_end) {
@@ -10055,7 +10056,7 @@ re_scan:
                 LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, prev_ir_pos);
                 prev_ir_pos = ir_pos;
             }
-            ir_offsets_to_wasm_offsets_table[cur_func_idx][prev_ir_pos] = wasm_pos;
+            ir_offsets_to_wasm_offsets_table[import_based_cur_func_idx][prev_ir_pos] = wasm_pos;
         }
 #endif
     }
