@@ -10060,6 +10060,14 @@ re_scan:
 #endif
     }
 
+#if WASM_ENABLE_FAST_INTERP != 0
+    if (func->code_compiled_size > 0) {
+        uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
+        LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (FIN, %d, %d)\n", UINT32_MAX, ir_pos);
+        ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = UINT32_MAX;
+    }
+#endif
+
     if (loader_ctx->csp_num > 0) {
         if (cur_func_idx < module->function_count - 1)
             /* Function with missing end marker (between two functions) */
