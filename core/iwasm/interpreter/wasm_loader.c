@@ -22,9 +22,6 @@
 #include "../compilation/aot_llvm.h"
 #endif
 
-#if WASM_ENABLE_FAST_INTERP != 0 && WASM_ENABLE_LABELS_AS_VALUES != 0
-static uint32 **ir_offsets_to_wasm_offsets_table;
-#endif
 
 /* Read a value of given type from the address pointed to by the given
    pointer and increase the pointer to the position just after the
@@ -7155,7 +7152,8 @@ re_scan:
 
     PUSH_CSP(LABEL_TYPE_FUNCTION, func_block_type, p);
 
-#if WASM_ENABLE_FAST_INTERP != 0 && BH_DEBUG != 0
+#if WASM_ENABLE_FAST_INTERP != 0
+    uint32 prev_ir_pos = 0;
     if (func->code_compiled_size > 0) {
         LOG_VERBOSE("cur_func_idx: %d\n", cur_func_idx);
     }
@@ -10053,8 +10051,11 @@ re_scan:
         last_op = opcode;
         if (func->code_compiled_size > 0) {
             uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
-            LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, ir_pos);
-            ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos] = wasm_pos;
+            if (prev_ir_pos != ir_pos) {
+                LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, ir_pos);
+                prev_ir_pos = ir_pos;
+            }
+            ir_offsets_to_wasm_offsets_table[cur_func_idx][prev_ir_pos] = wasm_pos;
         }
 #endif
     }
