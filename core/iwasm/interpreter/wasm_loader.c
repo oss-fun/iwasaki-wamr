@@ -10052,7 +10052,7 @@ re_scan:
         if (func->code_compiled_size > 0) {
             uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
             if (prev_ir_pos != ir_pos) {
-                LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, ir_pos);
+                LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, prev_ir_pos);
                 prev_ir_pos = ir_pos;
             }
             ir_offsets_to_wasm_offsets_table[cur_func_idx][prev_ir_pos] = wasm_pos;

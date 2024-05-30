@@ -1122,7 +1122,7 @@ wasm_interp_dump_op_count()
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
         uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
-        fprintf(stderr, "(ir, wasm): (%d, %d)\n", ir_pos, ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos]); \
+        fprintf(stderr, "(cur_fidx, ir_pos): (%d, %d)\n", cur_func_idx, ir_pos);   \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \
