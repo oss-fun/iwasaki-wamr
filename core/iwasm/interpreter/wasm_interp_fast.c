@@ -10,6 +10,7 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
+#include "../migration-fast/wasm_dump.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -1108,10 +1109,10 @@ wasm_interp_dump_op_count()
 }
 #endif
 
+        // uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
+        // uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          
 #define CHECK_DUMP()                                                        \
     if (sig_flag) {                                                         \
-        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
-        uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
         goto migration_async;                                               \
     }
 
@@ -1181,7 +1182,6 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
 }
 
 static bool sig_flag = false;
-static void (*native_handler)(void) = NULL;
 void
 wasm_interp_sigint(int signum)
 {
@@ -1252,21 +1252,16 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     signal(SIGINT, &wasm_interp_sigint);
 migration_async:
     if (sig_flag) {
-        fprintf(stderr, "Checkpoint!\n");
-        exit(1);
         SYNC_ALL_TO_FRAME();
-        uint8 *dummy_ip, *dummy_sp;
-        dummy_ip = frame_ip;
+        // uint8 *dummy_ip, *dummy_sp;
+        // dummy_ip = frame_ip;
         // dummy_sp = frame_sp;
-        // int rc = wasm_dump(exec_env, module, memory, 
-        //     globals, global_data, global_addr, cur_func,
-        //     frame, dummy_ip, dummy_sp, frame_csp,
-        //     frame_ip_end, else_addr, end_addr, maddr, done_flag);
+        // int rc = wasm_dump(exec_env, module, frame, cur_func);
         int rc = wasm_dump();
-        if (rc < 0) {
-            perror("failed to dump\n");
-            exit(1);
-        }
+        // if (rc < 0) {
+        //     perror("failed to dump\n");
+        //     exit(1);
+        // }
         // LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
         exit(0);     
     }
