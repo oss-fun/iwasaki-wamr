@@ -19,6 +19,8 @@ typedef int64 CellType_I64;
 typedef float32 CellType_F32;
 typedef float64 CellType_F64;
 
+uint32 **ir_offsets_to_wasm_offsets_table;
+
 #if WASM_ENABLE_THREAD_MGR == 0
 #define get_linear_mem_size() linear_mem_size
 #else
@@ -1108,11 +1110,6 @@ wasm_interp_dump_op_count()
 
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
-        // fprintf(stderr, "(ir, wasm): (%d, %d)\n", ir_pos, ir_offsets_to_wasm_offsets_table[cur_func_idx][ir_pos]); \
-        // fprintf(stderr, "(ir_pos, op): (%d, %#x)\n", ir_pos, (uint8)global_handle_table[*frame_ip]);   \
-        // fprintf(stderr, "(cur_fidx, ir_pos): (%d, %#x)\n", cur_func_idx, ir_pos);   \
-        // fprintf(stderr, "(cur_fidx, ir_pos): (%d, %d)\n", cur_func_idx, ir_pos);   \
-        // fprintf(stderr, "(ir, wasm): (%d, %d)\n", ir_pos, ir_offsets_to_wasm_offsets_table[cur_fidx][ir_pos]); \
 /* #define HANDLE_OP(opcode) HANDLE_##opcode:printf(#opcode"\n"); */
 #if WASM_ENABLE_OPCODE_COUNTER != 0
 #define HANDLE_OP(opcode) HANDLE_##opcode : opcode_table[opcode].count++;
@@ -1124,7 +1121,6 @@ wasm_interp_dump_op_count()
     do {                                               \
         uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
         uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
-        fprintf(stderr, "(cur_fidx, ir_pos): (%d, %d)\n", cur_fidx, ir_pos);   \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \

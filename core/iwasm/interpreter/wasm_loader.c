@@ -10056,6 +10056,7 @@ re_scan:
                 LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, prev_ir_pos);
                 prev_ir_pos = ir_pos;
             }
+            // NOTE: これはifの中に入れられない。prev_ir_posに対して、最後のwasm_posと対応させたいため。
             ir_offsets_to_wasm_offsets_table[import_based_cur_func_idx][prev_ir_pos] = wasm_pos;
         }
 #endif
