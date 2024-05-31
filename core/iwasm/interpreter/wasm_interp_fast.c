@@ -19,6 +19,8 @@ typedef int64 CellType_I64;
 typedef float32 CellType_F32;
 typedef float64 CellType_F64;
 
+uint32 **ir_offsets_to_wasm_offsets_table;
+
 #if WASM_ENABLE_THREAD_MGR == 0
 #define get_linear_mem_size() linear_mem_size
 #else
@@ -1117,6 +1119,8 @@ wasm_interp_dump_op_count()
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
+        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
+        uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \

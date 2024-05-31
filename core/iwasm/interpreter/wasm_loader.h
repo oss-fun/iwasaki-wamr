@@ -13,6 +13,10 @@
 extern "C" {
 #endif
 
+#if WASM_ENABLE_FAST_INTERP != 0 && WASM_ENABLE_LABELS_AS_VALUES != 0
+extern uint32 **ir_offsets_to_wasm_offsets_table;
+#endif
+
 /**
  * Load a WASM module from a specified byte buffer.
  *

@@ -1715,6 +1715,7 @@ load_function_section(const uint8 *buf, const uint8 *buf_end,
     WASMFunction *func;
 
     read_leb_uint32(p, p_end, func_count);
+    ir_offsets_to_wasm_offsets_table = (uint32 **)calloc(func_count + module->import_function_count, sizeof(uint32 *));
 
     if (buf_code)
         read_leb_uint32(p_code, buf_code_end, code_count);
@@ -4913,6 +4914,9 @@ fail:
 #if WASM_ENABLE_FAST_INTERP != 0
 
 #if WASM_DEBUG_PREPROCESSOR != 0
+#define HANDLE_OPCODE(opcode) #opcode
+DEFINE_GOTO_TABLE(const char *, opcode_names);
+#undef HANDLE_OPCODE
 #define LOG_OP(...) os_printf(__VA_ARGS__)
 #else
 #define LOG_OP(...) (void)0
@@ -5410,7 +5414,7 @@ fail:
 #define emit_label(opcode)                                      \
     do {                                                        \
         wasm_loader_emit_ptr(loader_ctx, handle_table[opcode]); \
-        LOG_OP("\nemit_op [%02x]\t", opcode);                   \
+        LOG_OP("\nemit_op [%s]\t", opcode_names[opcode]);       \
     } while (0)
 #define skip_label()                                            \
     do {                                                        \
@@ -7098,6 +7102,7 @@ wasm_loader_prepare_bytecode(WASMModule *module, WASMFunction *func,
     bool disable_emit, preserve_local = false, if_condition_available = true;
     float32 f32_const;
     float64 f64_const;
+    uint32 import_based_cur_func_idx = cur_func_idx + module->import_function_count;
 
     LOG_OP("\nProcessing func | [%d] params | [%d] locals | [%d] return\n",
            func->param_cell_num, func->local_cell_num, func->ret_cell_num);
@@ -7139,12 +7144,22 @@ re_scan:
         p = func->code;
         func->code_compiled = loader_ctx->p_code_compiled;
         func->code_compiled_size = loader_ctx->code_compiled_size;
+        ir_offsets_to_wasm_offsets_table[import_based_cur_func_idx] = 
+            (uint32 *)calloc(func->code_compiled_size+1, sizeof(uint32));
     }
 #endif
 
     PUSH_CSP(LABEL_TYPE_FUNCTION, func_block_type, p);
 
+#if WASM_ENABLE_FAST_INTERP != 0
+    uint32 prev_ir_pos = 0;
+    if (func->code_compiled_size > 0) {
+        LOG_VERBOSE("cur_func_idx: %d\n", import_based_cur_func_idx);
+    }
+#endif
     while (p < p_end) {
+        // NOTE: 関数の先頭がまだ実行されてコード位置を0で表現するために、wasm_posは1-indexedにする。
+        uint32 wasm_pos = p - func->code + 1;
         opcode = *p++;
 #if WASM_ENABLE_FAST_INTERP != 0
         p_org = p;
@@ -10033,6 +10048,15 @@ re_scan:
 
 #if WASM_ENABLE_FAST_INTERP != 0
         last_op = opcode;
+        if (func->code_compiled_size > 0) {
+            uint32 ir_pos = loader_ctx->p_code_compiled - func->code_compiled;
+            if (prev_ir_pos != ir_pos) {
+                LOG_VERBOSE("(opcode, wasm_pos, ir_pos): (%#x, %d, %d)\n", opcode, wasm_pos, prev_ir_pos);
+                prev_ir_pos = ir_pos;
+            }
+            // NOTE: これはifの中に入れられない。prev_ir_posに対して、最後のwasm_posと対応させたいため。
+            ir_offsets_to_wasm_offsets_table[import_based_cur_func_idx][prev_ir_pos] = wasm_pos;
+        }
 #endif
     }
 
