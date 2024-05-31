@@ -1,5 +1,5 @@
 #include <stdio.h>
-// #include <stdlib.h>
+#include <stdlib.h>
 // #include <time.h>
 
 #include "wasm_dump.h"
@@ -7,8 +7,9 @@
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
 
-// uint32 **ir_offsets_to_wasm_offsets_table;
 // #include "wasm_dispatch.h"
+
+uint32 **ir_offsets_to_wasm_offsets_table;
 
 // #define skip_leb(p) while (*p++ & 0x80)
 // #define skip_leb(p)                     \
@@ -25,12 +26,12 @@
 // }
 
 // /* common_functions */
-// int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
-//     if (stream == NULL) {
-//         return -1;
-//     }
-//     return fwrite(ptr, size, nmemb, stream);
-// }
+int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+    if (stream == NULL) {
+        return -1;
+    }
+    return fwrite(ptr, size, nmemb, stream);
+}
 
 // int debug_memories(WASMModuleInstance *module) {
 //     printf("=== debug memories ===\n");
@@ -402,32 +403,35 @@
 //     return 0;
 // }
 
-// int wasm_dump_program_counter(
-//     WASMModuleInstance *module,
-//     WASMFunctionInstance *func,
-//     uint8 *frame_ip
-// )
-// {
-//     FILE *fp;
-//     const char *file = "program_counter.img";
-//     fp = fopen(file, "wb");
-//     if (fp == NULL) {
-//         fprintf(stderr, "failed to open %s\n", file);
-//         return -1;
-//     }
+int wasm_dump_program_counter(
+    WASMModuleInstance *module,
+    WASMFunctionInstance *func,
+    uint8 *frame_ip
+)
+{
+    FILE *fp;
+    const char *file = "program_counter.img";
+    fp = fopen(file, "wb");
+    if (fp == NULL) {
+        fprintf(stderr, "failed to open %s\n", file);
+        return -1;
+    }
 
-//     uint32 fidx, p_offset;
-//     fidx = func - module->e->functions;
-//     p_offset = frame_ip - wasm_get_func_code(func);
+    uint32 fidx, ir_pos, wasm_pos;
+    fidx = func - module->e->functions;
+    ir_pos = frame_ip - wasm_get_func_code(func);
+    wasm_pos = ir_offsets_to_wasm_offsets_table[fidx][ir_pos];
+    
 
-//     dump_value(&fidx, sizeof(uint32), 1, fp);
-//     dump_value(&p_offset, sizeof(uint32), 1, fp);
-// }
+    dump_value(&fidx, sizeof(uint32), 1, fp);
+    dump_value(&wasm_pos, sizeof(uint32), 1, fp);
+}
 
 int wasm_dump(WASMExecEnv *exec_env, 
             WASMModuleInstance *module, 
             WASMInterpFrame *frame, 
-            WASMFunctionInstance *cur_func)
+            WASMFunctionInstance *cur_func,
+            uint8* frame_ip)
 {
     int rc;
     // struct timespec ts1, ts2;
@@ -453,13 +457,13 @@ int wasm_dump(WASMExecEnv *exec_env,
 
     // dump program counter
     // clock_gettime(CLOCK_MONOTONIC, &ts1);
-    // rc = wasm_dump_program_counter(module, cur_func, frame_ip);
+    rc = wasm_dump_program_counter(module, cur_func, frame_ip);
     // clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
-    // if (rc < 0) {
-    //     LOG_ERROR("Failed to dump program_counter\n");
-    //     return rc;
-    // }
+    if (rc < 0) {
+        LOG_ERROR("Failed to dump program_counter\n");
+        return rc;
+    }
 
     // dump stack
     // clock_gettime(CLOCK_MONOTONIC, &ts1);

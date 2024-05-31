@@ -20,7 +20,6 @@ typedef int64 CellType_I64;
 typedef float32 CellType_F32;
 typedef float64 CellType_F64;
 
-uint32 **ir_offsets_to_wasm_offsets_table;
 
 #if WASM_ENABLE_THREAD_MGR == 0
 #define get_linear_mem_size() linear_mem_size
@@ -1253,10 +1252,10 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 migration_async:
     if (sig_flag) {
         SYNC_ALL_TO_FRAME();
-        // uint8 *dummy_ip, *dummy_sp;
-        // dummy_ip = frame_ip;
+        uint8 *frame_ip_copy;
+        frame_ip_copy = frame_ip;
         // dummy_sp = frame_sp;
-        int rc = wasm_dump(exec_env, module, frame, cur_func);
+        int rc = wasm_dump(exec_env, module, frame, cur_func, frame_ip_copy);
         if (rc < 0) {
             perror("failed to dump\n");
             exit(1);
