@@ -1108,6 +1108,13 @@ wasm_interp_dump_op_count()
 }
 #endif
 
+#define CHECK_DUMP()                                                        \
+    if (sig_flag) {                                                         \
+        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
+        uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
+        goto migration_async;                                               \
+    }
+
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 /* #define HANDLE_OP(opcode) HANDLE_##opcode:printf(#opcode"\n"); */
@@ -1119,8 +1126,7 @@ wasm_interp_dump_op_count()
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
-        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
-        uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
+        CHECK_DUMP();                                  \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \
@@ -1172,6 +1178,14 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
                      + global->import_global_inst->data_offset
                : global_data + global->data_offset;
 #endif
+}
+
+static bool sig_flag = false;
+static void (*native_handler)(void) = NULL;
+void
+wasm_interp_sigint(int signum)
+{
+    sig_flag = true;
 }
 
 static void
@@ -1234,6 +1248,28 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         return;
     }
 #endif
+
+    signal(SIGINT, &wasm_interp_sigint);
+migration_async:
+    if (sig_flag) {
+        fprintf(stderr, "Checkpoint!\n");
+        exit(1);
+        SYNC_ALL_TO_FRAME();
+        uint8 *dummy_ip, *dummy_sp;
+        dummy_ip = frame_ip;
+        // dummy_sp = frame_sp;
+        // int rc = wasm_dump(exec_env, module, memory, 
+        //     globals, global_data, global_addr, cur_func,
+        //     frame, dummy_ip, dummy_sp, frame_csp,
+        //     frame_ip_end, else_addr, end_addr, maddr, done_flag);
+        int rc = wasm_dump();
+        if (rc < 0) {
+            perror("failed to dump\n");
+            exit(1);
+        }
+        // LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
+        exit(0);     
+    }
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0
     while (frame_ip < frame_ip_end) {
