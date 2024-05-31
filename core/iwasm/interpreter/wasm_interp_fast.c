@@ -1256,13 +1256,11 @@ migration_async:
         // uint8 *dummy_ip, *dummy_sp;
         // dummy_ip = frame_ip;
         // dummy_sp = frame_sp;
-        // int rc = wasm_dump(exec_env, module, frame, cur_func);
-        int rc = wasm_dump();
-        // if (rc < 0) {
-        //     perror("failed to dump\n");
-        //     exit(1);
-        // }
-        // LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
+        int rc = wasm_dump(exec_env, module, frame, cur_func);
+        if (rc < 0) {
+            perror("failed to dump\n");
+            exit(1);
+        }
         exit(0);     
     }
 

@@ -3,9 +3,9 @@
 // #include <time.h>
 
 #include "wasm_dump.h"
-// #include "wasm_loader.h"
-// #include "../interpreter/wasm_runtime.h"
-// #include "wasm_migration.h"
+#include "wasm_loader.h"
+#include "../interpreter/wasm_runtime.h"
+#include "wasm_migration.h"
 
 // uint32 **ir_offsets_to_wasm_offsets_table;
 // #include "wasm_dispatch.h"
@@ -424,11 +424,10 @@
 //     dump_value(&p_offset, sizeof(uint32), 1, fp);
 // }
 
-// int wasm_dump(WASMExecEnv *exec_env, 
-//             WASMModuleInstance *module, 
-//             WASMInterpFrame *frame, 
-//             WASMFunctionInstance *cur_func)
-int wasm_dump()
+int wasm_dump(WASMExecEnv *exec_env, 
+            WASMModuleInstance *module, 
+            WASMInterpFrame *frame, 
+            WASMFunctionInstance *cur_func)
 {
     int rc;
     // struct timespec ts1, ts2;
@@ -472,6 +471,7 @@ int wasm_dump()
     //     return rc;
     // }
 
+    fprintf(stderr, "HAPPY MIGRATION!\n");
     // LOG_VERBOSE("Success to dump img\n");
     return 0;
 }

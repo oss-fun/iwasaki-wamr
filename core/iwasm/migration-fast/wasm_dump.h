@@ -3,12 +3,12 @@
 
 #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
+#include "../interpreter/wasm_runtime.h"
 
-int wasm_dump();
-// int wasm_dump(WASMExecEnv *exec_env, 
-//             WASMModuleInstance *module, 
-//             WASMInterpFrame *frame, 
-//             WASMFunctionInstance *cur_func);
+int wasm_dump(WASMExecEnv *exec_env, 
+            WASMModuleInstance *module, 
+            WASMInterpFrame *frame, 
+            WASMFunctionInstance *cur_func);
 
 // int wasm_dump(WASMExecEnv *exec_env,
 //          WASMModuleInstance *module,
