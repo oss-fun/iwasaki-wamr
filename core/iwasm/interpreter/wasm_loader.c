@@ -22,7 +22,6 @@
 #include "../compilation/aot_llvm.h"
 #endif
 
-
 /* Read a value of given type from the address pointed to by the given
    pointer and increase the pointer to the position just after the
    value being read.  */
@@ -7124,7 +7123,6 @@ wasm_loader_prepare_bytecode(WASMModule *module, WASMFunction *func,
     if (!(loader_ctx = wasm_loader_ctx_init(func, error_buf, error_buf_size))) {
         goto fail;
     }
-
 
 #if WASM_ENABLE_FAST_INTERP != 0
     /* For the first traverse, the initial value of preserved_local_offset has

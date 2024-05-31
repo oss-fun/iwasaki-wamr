@@ -1215,7 +1215,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     uint8 *maddr = NULL;
     uint32 local_idx, local_offset, global_idx;
     uint8 opcode, local_type, *global_addr;
-
 #if !defined(OS_ENABLE_HW_BOUND_CHECK) \
     || WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS == 0
 #if WASM_CONFIGURABLE_BOUNDS_CHECKS != 0
