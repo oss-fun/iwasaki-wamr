@@ -10,6 +10,7 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
+#include "../migration-fast/wasm_dump.h"
 #if WASM_ENABLE_SHARED_MEMORY != 0
 #include "../common/wasm_shared_memory.h"
 #endif
@@ -19,7 +20,6 @@ typedef int64 CellType_I64;
 typedef float32 CellType_F32;
 typedef float64 CellType_F64;
 
-uint32 **ir_offsets_to_wasm_offsets_table;
 
 #if WASM_ENABLE_THREAD_MGR == 0
 #define get_linear_mem_size() linear_mem_size
@@ -1108,6 +1108,13 @@ wasm_interp_dump_op_count()
 }
 #endif
 
+        // uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
+        // uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          
+#define CHECK_DUMP()                                                        \
+    if (sig_flag) {                                                         \
+        goto migration_async;                                               \
+    }
+
 #if WASM_ENABLE_LABELS_AS_VALUES != 0
 
 /* #define HANDLE_OP(opcode) HANDLE_##opcode:printf(#opcode"\n"); */
@@ -1119,8 +1126,7 @@ wasm_interp_dump_op_count()
 #if WASM_CPU_SUPPORTS_UNALIGNED_ADDR_ACCESS != 0
 #define FETCH_OPCODE_AND_DISPATCH()                    \
     do {                                               \
-        uint32 ir_pos = (uint64)frame_ip - (uint64)wasm_get_func_code(cur_func);          \
-        uint32 cur_fidx = (uint32)(cur_func - module->e->functions);          \
+        CHECK_DUMP();                                  \
         const void *p_label_addr = *(void **)frame_ip; \
         frame_ip += sizeof(void *);                    \
         goto *p_label_addr;                            \
@@ -1172,6 +1178,13 @@ get_global_addr(uint8 *global_data, WASMGlobalInstance *global)
                      + global->import_global_inst->data_offset
                : global_data + global->data_offset;
 #endif
+}
+
+static bool sig_flag = false;
+void
+wasm_interp_sigint(int signum)
+{
+    sig_flag = true;
 }
 
 static void
@@ -1234,6 +1247,21 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         return;
     }
 #endif
+
+    signal(SIGINT, &wasm_interp_sigint);
+migration_async:
+    if (sig_flag) {
+        SYNC_ALL_TO_FRAME();
+        uint8 *frame_ip_copy;
+        frame_ip_copy = frame_ip;
+        // dummy_sp = frame_sp;
+        int rc = wasm_dump(exec_env, module, frame, cur_func, frame_ip_copy);
+        if (rc < 0) {
+            perror("failed to dump\n");
+            exit(1);
+        }
+        exit(0);     
+    }
 
 #if WASM_ENABLE_LABELS_AS_VALUES == 0
     while (frame_ip < frame_ip_end) {
