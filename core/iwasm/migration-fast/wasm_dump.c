@@ -182,111 +182,111 @@ int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 // }
 
 // /* wasm_dump */
-// static void
-// _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp, bool is_top)
-// {
-//     int i;
-//     WASMModuleInstance *module = exec_env->module_inst;
+static void
+_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp, bool is_top)
+{
+    int i;
+    WASMModuleInstance *module = exec_env->module_inst;
 
-//     // Entry function
-//     // wasm_dump_stackの方でdump
+    // Entry function
+    // wasm_dump_stackの方でdump
 
-//     // リターンアドレス
-//     // NOTE: 1番下のframeのときだけ、prev_frameではなくframeのリターンアドレスを出力する
-//     WASMInterpFrame* prev_frame = (frame->prev_frame->function ? frame->prev_frame : frame);
-//     uint32 fidx = prev_frame->function - module->e->functions;
-//     uint32 offset = prev_frame->ip - wasm_get_func_code(prev_frame->function);
-//     fwrite(&fidx, sizeof(uint32), 1, fp);
-//     fwrite(&offset, sizeof(uint32), 1, fp);
+    // リターンアドレス
+    // NOTE: 1番下のframeのときだけ、prev_frameではなくframeのリターンアドレスを出力する
+    // WASMInterpFrame* prev_frame = (frame->prev_frame->function ? frame->prev_frame : frame);
+    // uint32 fidx = prev_frame->function - module->e->functions;
+    // uint32 offset = prev_frame->ip - wasm_get_func_code(prev_frame->function);
+    // fwrite(&fidx, sizeof(uint32), 1, fp);
+    // fwrite(&offset, sizeof(uint32), 1, fp);
 
-//     // 型スタックのサイズ
-//     WASMFunctionInstance *func = frame->function;
-//     uint32 locals = func->param_count + func->local_count;
-//     // uint32 type_stack_size = (frame->tsp - frame->tsp_bottom);
-//     // uint32 full_type_stack_size = type_stack_size + locals;
-//     // fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
+    // 型スタックのサイズ
+    // WASMFunctionInstance *func = frame->function;
+    // uint32 locals = func->param_count + func->local_count;
+    // // uint32 type_stack_size = (frame->tsp - frame->tsp_bottom);
+    // // uint32 full_type_stack_size = type_stack_size + locals;
+    // // fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
 
-//     // 型スタックの中身
-//     uint32 type_stack_size_from_file;
-//     uint32 fidx_now = frame->function - module->e->functions;
-//     uint32 offset_now = frame->ip - wasm_get_func_code(frame->function);
-//     // printf("[DEBUG]now addr: (%d, %d)\n", fidx_now, offset_now);
-//     uint8* type_stack_from_file = get_type_stack(fidx_now, offset_now, &type_stack_size_from_file, !is_top);
-//     fwrite(&type_stack_size_from_file, sizeof(uint32), 1, fp);
-//     fwrite(type_stack_from_file, sizeof(uint8), type_stack_size_from_file, fp);
-//     free(type_stack_from_file);
+    // 型スタックの中身
+    // uint32 type_stack_size_from_file;
+    // uint32 fidx_now = frame->function - module->e->functions;
+    // uint32 offset_now = frame->ip - wasm_get_func_code(frame->function);
+    // // printf("[DEBUG]now addr: (%d, %d)\n", fidx_now, offset_now);
+    // uint8* type_stack_from_file = get_type_stack(fidx_now, offset_now, &type_stack_size_from_file, !is_top);
+    // fwrite(&type_stack_size_from_file, sizeof(uint32), 1, fp);
+    // fwrite(type_stack_from_file, sizeof(uint8), type_stack_size_from_file, fp);
+    // free(type_stack_from_file);
 
-//     // 値スタックの中身
-//     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
-//     uint32 value_stack_size = frame->sp - frame->sp_bottom;
-//     fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
-//     fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
+    // 値スタックの中身
+    uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
+    uint32 value_stack_size = frame->sp - frame->sp_bottom;
+    fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
+    fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
 
-//     // ラベルスタックのサイズ
-//     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
-//     fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
+    // ラベルスタックのサイズ
+    uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
+    fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
 
-//     // ラベルスタックの中身
-//     WASMBranchBlock *csp = frame->csp_bottom;
-//     uint32 addr;
-//     uint8* ip_start = wasm_get_func_code(frame->function);
-//     for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
-//         // uint8 *begin_addr;
-//         addr = get_addr_offset(csp->begin_addr, ip_start);
-//         fwrite(&addr, sizeof(uint32), 1, fp);
+    // ラベルスタックの中身
+    WASMBranchBlock *csp = frame->csp_bottom;
+    uint32 addr;
+    uint8* ip_start = wasm_get_func_code(frame->function);
+    for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
+        // uint8 *begin_addr;
+        addr = get_addr_offset(csp->begin_addr, ip_start);
+        fwrite(&addr, sizeof(uint32), 1, fp);
 
-//         // uint8 *target_addr;
-//         addr = get_addr_offset(csp->target_addr, ip_start);
-//         fwrite(&addr, sizeof(uint32), 1, fp);
+        // uint8 *target_addr;
+        addr = get_addr_offset(csp->target_addr, ip_start);
+        fwrite(&addr, sizeof(uint32), 1, fp);
 
-//         // uint32 *frame_sp;
-//         addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
-//         fwrite(&addr, sizeof(uint32), 1, fp);
+        // uint32 *frame_sp;
+        addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
+        fwrite(&addr, sizeof(uint32), 1, fp);
 
-//         // uint32 *frame_tsp;
-//         // addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
-//         // fwrite(&addr, sizeof(uint32), 1, fp);
+        // uint32 *frame_tsp;
+        // addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
+        // fwrite(&addr, sizeof(uint32), 1, fp);
         
-//         // uint32 cell_num;
-//         fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+        // uint32 cell_num;
+        fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
 
-//         // uint32 count;
-//         // fwrite(&csp->count, sizeof(uint32), 1, fp);
-//     }
-// }
+        // uint32 count;
+        // fwrite(&csp->count, sizeof(uint32), 1, fp);
+    }
+}
 
 
-// int
-// wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
-// {
-//     WASMModuleInstance *module =
-//         (WASMModuleInstance *)exec_env->module_inst;
+int
+wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
+{
+    WASMModuleInstance *module =
+        (WASMModuleInstance *)exec_env->module_inst;
 
-//     // frameをtopからbottomまで走査する
-//     char file[32];
-//     int i = 0;
-//     do {
-//         // dummy framenならbreak
-//         if (frame->function == NULL) break;
+    // frameをtopからbottomまで走査する
+    char file[32];
+    int i = 0;
+    do {
+        // dummy framenならbreak
+        if (frame->function == NULL) break;
 
-//         ++i;
-//         sprintf(file, "stack%d.img", i);
-//         FILE *fp = open_image(file, "wb");
+        ++i;
+        sprintf(file, "stack%d.img", i);
+        FILE *fp = open_image(file, "wb");
 
-//         uint32 entry_fidx = frame->function - module->e->functions;
-//         fwrite(&entry_fidx, sizeof(uint32), 1, fp);
+        uint32 entry_fidx = frame->function - module->e->functions;
+        fwrite(&entry_fidx, sizeof(uint32), 1, fp);
 
-//         _dump_stack(exec_env, frame, fp, (i==1));
-//         fclose(fp);
-//     } while(frame = frame->prev_frame);
+        _dump_stack(exec_env, frame, fp, (i==1));
+        fclose(fp);
+    } while(frame = frame->prev_frame);
 
-//     // frame stackのサイズを保存
-//     FILE *fp = open_image("frame.img", "wb");
-//     fwrite(&i, sizeof(uint32), 1, fp);
-//     fclose(fp);
+    // frame stackのサイズを保存
+    FILE *fp = open_image("frame.img", "wb");
+    fwrite(&i, sizeof(uint32), 1, fp);
+    fclose(fp);
 
-//     return 0;
-// }
+    return 0;
+}
 
 // int is_dirty(uint64 pagemap_entry) {
 //     return (pagemap_entry>>62&1) | (pagemap_entry>>63&1);
@@ -431,7 +431,8 @@ int wasm_dump(WASMExecEnv *exec_env,
             WASMModuleInstance *module, 
             WASMInterpFrame *frame, 
             WASMFunctionInstance *cur_func,
-            uint8* frame_ip)
+            uint8 *frame_ip,
+            uint8 *frame_lp)
 {
     int rc;
     // struct timespec ts1, ts2;
@@ -467,7 +468,7 @@ int wasm_dump(WASMExecEnv *exec_env,
 
     // dump stack
     // clock_gettime(CLOCK_MONOTONIC, &ts1);
-    // rc = wasm_dump_stack(exec_env, frame);
+    rc = wasm_dump_stack(exec_env, frame);
     // clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
     // if (rc < 0) {

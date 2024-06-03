@@ -9,7 +9,8 @@ int wasm_dump(WASMExecEnv *exec_env,
             WASMModuleInstance *module, 
             WASMInterpFrame *frame, 
             WASMFunctionInstance *cur_func,
-            uint8 *frame_ip);
+            uint8 *frame_ip,
+            uint8 *frame_lp);
 
 // int wasm_dump(WASMExecEnv *exec_env,
 //          WASMModuleInstance *module,

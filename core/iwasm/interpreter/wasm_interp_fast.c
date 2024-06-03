@@ -1252,10 +1252,11 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 migration_async:
     if (sig_flag) {
         SYNC_ALL_TO_FRAME();
-        uint8 *frame_ip_copy;
+        uint8 *frame_ip_copy, *frame_lp_copy;
         frame_ip_copy = frame_ip;
+        frame_lp_copy = frame_lp;
         // dummy_sp = frame_sp;
-        int rc = wasm_dump(exec_env, module, frame, cur_func, frame_ip_copy);
+        int rc = wasm_dump(exec_env, module, frame, cur_func, frame_ip_copy, frame_lp_copy);
         if (rc < 0) {
             perror("failed to dump\n");
             exit(1);
