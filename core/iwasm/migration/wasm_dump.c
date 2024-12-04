@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <wasmig/migration.h>
 
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
@@ -441,6 +442,8 @@ int wasm_dump(WASMExecEnv *exec_env,
 {
     int rc;
     struct timespec ts1, ts2;
+    hello_world();
+
     // dump linear memory
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_memory(memory);
