@@ -162,9 +162,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     } while(frame = frame->prev_frame);
 
     // frame stackのサイズを保存
-    FILE *fp = open_image("frame.img", "wb");
-    fwrite(&i, sizeof(uint32), 1, fp);
-    fclose(fp);
+    checkpoint_call_stack_size(i);
 
     return 0;
 }
