@@ -173,21 +173,23 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
-    uint64 *global_values[module->e->global_count];
-    uint32 *global_types[module->e->global_count];
-
+    uint64_t values[module->e->global_count];
+    uint32_t types[module->e->global_count];
     uint8 *global_addr;
     for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_values[i] = globals+i;
-                global_types[i] = sizeof(uint32);
+                values[i] = *get_global_addr_for_migration(global_data, (globals+i));
+                types[i] = sizeof(uint32);
+                // fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_values[i] = globals+i;
-                global_types[i] = sizeof(uint64);
+                values[i] = *get_global_addr_for_migration(global_data, (globals+i));
+                types[i] = sizeof(uint64);
+                // global_addr = get_global_addr_for_migration(global_data, (globals+i));
+                // fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
                 printf("type error:B\n");
@@ -195,9 +197,7 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
         }
     }
 
-    checkpoint_global(global_values, global_types, module->e->global_count);
-
-    return 0;
+    checkpoint_global(values, types, module->e->global_count);
 }
 
 int wasm_dump_program_counter(
