@@ -285,110 +285,27 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     return 0;
 }
 
-int is_dirty(uint64 pagemap_entry) {
-    return (pagemap_entry>>62&1) | (pagemap_entry>>63&1);
-}
-
-int is_soft_dirty(uint64 pagemap_entry) {
-    return (pagemap_entry >> 55 & 1);
-}
-
-int dump_dirty_memory(WASMMemoryInstance *memory) {
-    const int PAGEMAP_LENGTH = 8;
-    const int PAGE_SIZE = 4096;
-    FILE *memory_fp = open_image("memory.img", "wb");
-    int fd;
-    uint64 pagemap_entry;
-    // プロセスのpagemapを開く
-    fd = open("/proc/self/pagemap", O_RDONLY);
-    if (fd == -1) {
-        perror("Error opening pagemap");
-        return -1;
-    }
-
-    // pfnに対応するpagemapエントリを取得
-    unsigned long pfn = (unsigned long)memory->memory_data / PAGE_SIZE;
-    off_t offset = sizeof(uint64) * pfn;
-    if (lseek(fd, offset, SEEK_SET) == -1) {
-        perror("Error seeking to pagemap entry");
-        close(fd);
-        return -1;
-    }
-
-    uint8* memory_data = memory->memory_data;
-    uint8* memory_data_end = memory->memory_data_end;
-    int i = 0;
-    for (uint8* addr = memory->memory_data; addr < memory_data_end; addr += PAGE_SIZE, ++i) {
-        unsigned long pfn = (unsigned long)addr / PAGE_SIZE;
-        off_t offset = sizeof(uint64) * pfn;
-        if (lseek(fd, offset, SEEK_SET) == -1) {
-            perror("Error seeking to pagemap entry");
-            close(fd);
-            return -1;
-        }
-
-        if (read(fd, &pagemap_entry, PAGEMAP_LENGTH) != PAGEMAP_LENGTH) {
-            perror("Error reading pagemap entry");
-            close(fd);
-            return -1;
-        }
-
-        // dirty pageのみdump
-        // if (is_dirty(pagemap_entry)) {
-        if (is_soft_dirty(pagemap_entry)) {
-            // printf("[%x, %x]: dirty page\n", i*PAGE_SIZE, (i+1)*PAGE_SIZE);
-            uint32 offset = (uint64)addr - (uint64)memory_data;
-            // printf("i: %d\n", offset);
-            fwrite(&offset, sizeof(uint32), 1, memory_fp);
-            fwrite(addr, PAGE_SIZE, 1, memory_fp);
-        }
-    }
-
-    close(fd);
-    fclose(memory_fp);
-    return 0;
-}
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
-
-    dump_dirty_memory(memory);
-
-
-    printf("page_count: %d\n", memory->cur_page_count);
-    fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
-
-    fclose(mem_size_fp);
-
-    // デバッグのために、すべてのメモリも保存
-    // FILE *all_memory_fp = open_image("all_memory.img", "wb");
-    // fwrite(memory->memory_data, sizeof(uint8),
-    //        memory->num_bytes_per_page * memory->cur_page_count, all_memory_fp);
-    // fclose(all_memory_fp);
+    checkpoint_memory(memory->memory_data, memory->cur_page_count);
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
-    FILE *fp;
-    const char *file = "global.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
+    uint64 *global_values[module->e->global_count];
+    uint32 *global_types[module->e->global_count];
 
-    // WASMMemoryInstance *memory = module->default_memory;
     uint8 *global_addr;
     for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint32), 1, fp);
+                global_values[i] = globals+i;
+                global_types[i] = sizeof(uint32);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint64), 1, fp);
+                global_values[i] = globals+i;
+                global_types[i] = sizeof(uint64);
                 break;
             default:
                 printf("type error:B\n");
@@ -396,7 +313,8 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
         }
     }
 
-    fclose(fp);
+    checkpoint_global(global_values, global_types, module->e->global_count);
+
     return 0;
 }
 
@@ -406,20 +324,11 @@ int wasm_dump_program_counter(
     uint8 *frame_ip
 )
 {
-    FILE *fp;
-    const char *file = "program_counter.img";
-    fp = fopen(file, "wb");
-    if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
-        return -1;
-    }
-
     uint32 fidx, p_offset;
     fidx = func - module->e->functions;
     p_offset = frame_ip - wasm_get_func_code(func);
 
-    dump_value(&fidx, sizeof(uint32), 1, fp);
-    dump_value(&p_offset, sizeof(uint32), 1, fp);
+    checkpoint_pc(fidx, p_offset);
 }
 
 int wasm_dump(WASMExecEnv *exec_env,
@@ -446,6 +355,7 @@ int wasm_dump(WASMExecEnv *exec_env,
 
     // dump linear memory
     clock_gettime(CLOCK_MONOTONIC, &ts1);
+    // rc = checkpoint_memory(memory->memory_data, memory->cur_page_count);
     rc = wasm_dump_memory(memory);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
