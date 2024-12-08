@@ -108,12 +108,20 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, uint32 call_st
     WASMFunctionInstance *func = frame->function;
     uint32 local_size = func->param_cell_num + func->local_cell_num;
     uint32 value_stack_size = frame->sp - frame->sp_bottom;
-    uint32 values[local_size + value_stack_size];
-    memcpy(values, frame->lp, local_size);
-    memcpy(values+local_size, frame->sp_bottom, value_stack_size);
-    Array32 value_stack;
-    value_stack.size = local_size+value_stack_size;
-    value_stack.contents = values;
+    Array32 locals = {
+        .size = local_size,
+        .contents = frame->lp,
+    };
+    Array32 value_stack = {
+        .size = value_stack_size,
+        .contents = frame->sp_bottom,
+    };
+    // uint32 values[local_size + value_stack_size];
+    // memcpy(values, frame->lp, local_size);
+    // memcpy(values+local_size, frame->sp_bottom, value_stack_size);
+    // Array32 value_stack;
+    // value_stack.size = local_size+value_stack_size;
+    // value_stack.contents = values;
 
     // ラベルスタックの中身
     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
@@ -142,7 +150,7 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, uint32 call_st
     // dump stack
     uint32 entry_fidx = frame->function - module->e->functions;
     bool is_top = (bool)(call_stack_id == 1);
-    checkpoint_stack(call_stack_id, entry_fidx, &ret_addr, &cur_addr, &value_stack, &labels, is_top);
+    checkpoint_stack(call_stack_id, entry_fidx, &ret_addr, &cur_addr, &locals, &value_stack, &labels, is_top);
 }
 
 
