@@ -1314,9 +1314,8 @@ migration_async:
         dummy_ip = frame_ip;
         dummy_sp = frame_sp;
         int rc = wasm_dump(exec_env, module, memory, 
-            globals, global_data, global_addr, cur_func,
-            frame, dummy_ip, dummy_sp, frame_csp,
-            frame_ip_end, else_addr, end_addr, maddr, done_flag);
+            globals, global_data, cur_func,
+            frame, dummy_ip);
         if (rc < 0) {
             perror("failed to dump\n");
             exit(1);

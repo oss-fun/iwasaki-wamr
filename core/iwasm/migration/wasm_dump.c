@@ -116,12 +116,6 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, uint32 call_st
         .size = value_stack_size,
         .contents = frame->sp_bottom,
     };
-    // uint32 values[local_size + value_stack_size];
-    // memcpy(values, frame->lp, local_size);
-    // memcpy(values+local_size, frame->sp_bottom, value_stack_size);
-    // Array32 value_stack;
-    // value_stack.size = local_size+value_stack_size;
-    // value_stack.contents = values;
 
     // ラベルスタックの中身
     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
@@ -190,14 +184,11 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
             case VALUE_TYPE_F32:
                 values[i] = *get_global_addr_for_migration(global_data, (globals+i));
                 types[i] = sizeof(uint32);
-                // fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
                 values[i] = *get_global_addr_for_migration(global_data, (globals+i));
                 types[i] = sizeof(uint64);
-                // global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                // fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
                 printf("type error:B\n");
@@ -226,18 +217,9 @@ int wasm_dump(WASMExecEnv *exec_env,
          WASMMemoryInstance *memory,
          WASMGlobalInstance *globals,
          uint8 *global_data,
-         uint8 *global_addr,
          WASMFunctionInstance *cur_func,
          struct WASMInterpFrame *frame,
-         register uint8 *frame_ip,
-         register uint32 *frame_sp,
-         WASMBranchBlock *frame_csp,
-        //  uint32 *frame_tsp,
-         uint8 *frame_ip_end,
-         uint8 *else_addr,
-         uint8 *end_addr,
-         uint8 *maddr,
-         bool done_flag)
+         register uint8 *frame_ip)
 {
     int rc;
     struct timespec ts1, ts2;
