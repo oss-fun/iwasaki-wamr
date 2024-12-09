@@ -1,12 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
-#include <wasmig/migration.h>
+// #include <wasmig/migration.h>
 
 #include "../interpreter/wasm_runtime.h"
 #include "wasm_migration.h"
 #include "wasm_dump.h"
 #include "wasm_dispatch.h"
+
+// Rustライブラリの関数を宣言
+extern int add(int a, int b);
 
 // #define skip_leb(p) while (*p++ & 0x80)
 #define skip_leb(p)                     \
@@ -442,7 +445,9 @@ int wasm_dump(WASMExecEnv *exec_env,
 {
     int rc;
     struct timespec ts1, ts2;
-    hello_world();
+    // int a = add(1, 2);
+    // printf("a: %d\n");
+    helloworld();
 
     // dump linear memory
     clock_gettime(CLOCK_MONOTONIC, &ts1);

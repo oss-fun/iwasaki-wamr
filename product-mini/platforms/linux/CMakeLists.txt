@@ -149,15 +149,40 @@ endif ()
 #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fstack-protector-strong --param ssp-buffer-size=4")
 #set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wl,-z,noexecstack,-z,relro,-z,now")
 
+include(FetchContent)
+FetchContent_Declare(
+    wasmig
+    GIT_REPOSITORY https://github.com/funera1/wasmig.git
+    # GIT_TAG HEAD
+    GIT_TAG  porting-rust 
+)
+
+# Rustライブラリのソースを取得
+FetchContent_MakeAvailable(wasmig)
+
+# Rustライブラリのビルド設定
+add_custom_target(build_wasmig ALL
+    COMMAND cargo build --release
+    WORKING_DIRECTORY ${wasmig_SOURCE_DIR}
+    COMMENT "Building Rust static library"
+)
+
+# Rustライブラリの出力ディレクトリ
+set(WASMIG_LIB "${wasmig_SOURCE_DIR}/target/release/libwasmig.a")
+
 include (${SHARED_DIR}/utils/uncommon/shared_uncommon.cmake)
 
 add_executable (iwasm main.c ${UNCOMMON_SHARED_SOURCE})
+
+# RustライブラリがCプロジェクトにリンクされるよう依存関係を設定
+add_dependencies(iwasm build_wasmig)
+# target_link_libraries(iwasm PRIVATE ${WASMIG_LIB})
 
 set_target_properties (iwasm PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 install (TARGETS iwasm DESTINATION bin)
 
-target_link_libraries (iwasm vmlib ${LLVM_AVAILABLE_LIBS} ${UV_A_LIBS} ${WASI_NN_LIBS} -lm -ldl -lpthread)
+target_link_libraries (iwasm vmlib ${LLVM_AVAILABLE_LIBS} ${UV_A_LIBS} ${WASI_NN_LIBS} ${WASMIG_LIB} -lm -ldl -lpthread)
 
 add_library (libiwasm SHARED ${WAMR_RUNTIME_LIB_SOURCE})
 
