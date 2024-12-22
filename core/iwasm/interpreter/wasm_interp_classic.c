@@ -1595,7 +1595,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     if (get_restore_flag()) {
         // bool done_flag;
         int rc;
-        struct timespec ts1, ts2;
+        struct timespec ts2;
 
         clock_gettime(CLOCK_MONOTONIC, &ts1);
         frame = wasm_restore_stack(&exec_env);
