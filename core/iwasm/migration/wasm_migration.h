@@ -7,7 +7,7 @@
 int64_t get_time(struct timespec ts1, struct timespec ts2);
 
 static inline uint8 *
-get_global_addr_for_migration(uint8 *global_data, WASMGlobalInstance *global)
+get_global_addr_for_migration(uint8 *global_data, const WASMGlobalInstance *global)
 {
 #if WASM_ENABLE_MULTI_MODULE == 0
     return global_data + global->data_offset;
