@@ -4,6 +4,8 @@
 // #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
+int64_t get_time(struct timespec ts1, struct timespec ts2);
+
 static inline uint8 *
 get_global_addr_for_migration(uint8 *global_data, WASMGlobalInstance *global)
 {

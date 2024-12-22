@@ -43,6 +43,7 @@ int debug_memories(WASMModuleInstance *module) {
     }
 
     printf("=== debug memories ===\n");
+    return 0;
 }
 
 // 積まれてるframe stackを出力する
@@ -59,7 +60,7 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
         else {
             printf("%d) func_idx: %d\n", cnt, frame->function - module->e->functions);
         }
-    } while (frame = frame->prev_frame);
+    } while ((frame = frame->prev_frame));
     printf("=== DEBUG Frame Stack ===\n");
 }
 
@@ -274,7 +275,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
         _dump_stack(exec_env, frame, fp, (i==1));
         fclose(fp);
-    } while(frame = frame->prev_frame);
+    } while((frame = frame->prev_frame));
 
     // frame stackのサイズを保存
     FILE *fp = open_image("frame.img", "wb");
@@ -364,6 +365,7 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
     // fwrite(memory->memory_data, sizeof(uint8),
     //        memory->num_bytes_per_page * memory->cur_page_count, all_memory_fp);
     // fclose(all_memory_fp);
+    return 0;
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
@@ -419,6 +421,8 @@ int wasm_dump_program_counter(
 
     dump_value(&fidx, sizeof(uint32), 1, fp);
     dump_value(&p_offset, sizeof(uint32), 1, fp);
+
+    return 0;
 }
 
 int wasm_dump(WASMExecEnv *exec_env,
