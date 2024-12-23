@@ -58,7 +58,7 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
             printf("%d) func_idx: -1\n", cnt);
         }
         else {
-            printf("%d) func_idx: %d\n", cnt, frame->function - module->e->functions);
+            printf("%d) func_idx: %ld\n", cnt, frame->function - module->e->functions);
         }
     } while ((frame = frame->prev_frame));
     printf("=== DEBUG Frame Stack ===\n");
@@ -69,11 +69,11 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
     FILE *fp = fopen("wamr_opcode.log", "a");
     if (fp == NULL) return -1;
 
-    fprintf(fp, "fidx: %d\n", func - module->e->functions);
+    fprintf(fp, "fidx: %ld\n", func - module->e->functions);
     uint8 *ip = wasm_get_func_code(func);
     uint8 *ip_end = wasm_get_func_code_end(func);
     
-    for (int i = 0; i < limit; i++) {
+    for (int i = 0; i < (int)limit; i++) {
         fprintf(fp, "%d) opcode: 0x%x\n", i+1, *ip);
         ip = dispatch(ip, ip_end);
         if (ip >= ip_end) break;
@@ -163,13 +163,6 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     for (uint32 i = 0; i < locals_size; ++i) type_stack[i] = locals[i];
     for (uint32 i = 0; i < stack_size; ++i) type_stack[locals_size + i] = stack[i];
 
-    // printf("new type stack: [");
-    // for (uint32 i = 0; i < locals_size + stack_size; ++i) {
-    //     if (i+1 == locals_size + stack_size)printf("%d", type_stack[i]);
-    //     else                                printf("%d, ", type_stack[i]);
-    // }
-    // printf("]\n");
-
     fclose(tablemap_func);
     fclose(tablemap_offset);
     fclose(type_table);
@@ -180,7 +173,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
 
 /* wasm_dump */
 static void
-_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp, bool is_top)
+_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, FILE *fp, bool is_top)
 {
     int i;
     WASMModuleInstance *module = exec_env->module_inst;
