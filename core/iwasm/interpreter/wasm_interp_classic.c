@@ -1583,7 +1583,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 #undef HANDLE_OPCODE
 #endif
 
+#if BH_PLATFORM_ESP_IDF != 1
     signal(SIGINT, &wasm_interp_sigint);
+#endif
     // Clear soft-dirty bit
     clear_refs();
 
