@@ -7,6 +7,8 @@
 #include "wasm_dump.h"
 #include "wasm_dispatch.h"
 
+#define BH_PLATFORM_LINUX 0
+
 // #define skip_leb(p) while (*p++ & 0x80)
 #define skip_leb(p)                     \
     while (1) {                         \
@@ -344,6 +346,10 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
 
 #if BH_PLATFORM_LINUX == 1
     int fd = get_pagemap(memory->memory_data);
+#else
+    // check_soft_dirtyでfdを使っているのでダミー用. 
+    // もっといい実装がありそう
+    int fd = 0;
 #endif
 
     uint8* memory_data = memory->memory_data;
