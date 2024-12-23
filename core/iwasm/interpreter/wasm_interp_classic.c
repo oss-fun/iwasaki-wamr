@@ -1588,7 +1588,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     signal(SIGINT, &wasm_interp_sigint);
 #endif
     // Clear soft-dirty bit
+#if BH_PLATFORM_LINUX == 1
     clear_refs();
+#endif
 
     // リストアの初期化時間の計測(終了)
     struct timespec ts1;

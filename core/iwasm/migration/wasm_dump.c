@@ -286,12 +286,10 @@ int is_soft_dirty(uint64 pagemap_entry) {
     return (pagemap_entry >> 55 & 1);
 }
 
-int dump_dirty_memory(WASMMemoryInstance *memory) {
-    const int PAGEMAP_LENGTH = 8;
+// 副作用あり
+int get_pagemap(unsigned long memory_addr) {
     const int PAGE_SIZE = 4096;
-    FILE *memory_fp = open_image("memory.img", "wb");
     int fd;
-    uint64 pagemap_entry;
     // プロセスのpagemapを開く
     fd = open("/proc/self/pagemap", O_RDONLY);
     if (fd == -1) {
@@ -300,7 +298,23 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
     }
 
     // pfnに対応するpagemapエントリを取得
-    unsigned long pfn = (unsigned long)memory->memory_data / PAGE_SIZE;
+    unsigned long pfn = memory_addr / PAGE_SIZE;
+    off_t offset = sizeof(uint64) * pfn;
+    if (lseek(fd, offset, SEEK_SET) == -1) {
+        perror("Error seeking to pagemap entry");
+        close(fd);
+        return -1;
+    }
+    return fd;
+}
+
+// dirty pageの場合1を返す. not dirtyならば0. ただし、Linux以外は必ず1を返す
+int check_soft_dirty(int fd, uint8* addr) {
+#if BH_PLATFORM_LINUX == 1
+    const int PAGEMAP_LENGTH = 8;
+    const int PAGE_SIZE = 4096;
+    uint64 pagemap_entry;
+    unsigned long pfn = (unsigned long)addr / PAGE_SIZE;
     off_t offset = sizeof(uint64) * pfn;
     if (lseek(fd, offset, SEEK_SET) == -1) {
         perror("Error seeking to pagemap entry");
@@ -308,36 +322,44 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
         return -1;
     }
 
+    if (read(fd, &pagemap_entry, PAGEMAP_LENGTH) != PAGEMAP_LENGTH) {
+        perror("Error reading pagemap entry");
+        close(fd);
+        return -1;
+    }
+
+    // dirty pageのみdump
+    // if (is_dirty(pagemap_entry)) {
+    return is_soft_dirty(pagemap_entry);
+#else
+    // linux以外は確定で1を返す
+    return 1;
+#endif
+}
+
+int dump_dirty_memory(WASMMemoryInstance *memory) {
+    const int PAGE_SIZE = 4096;
+    FILE *memory_fp = open_image("memory.img", "wb");
+    uint64 pagemap_entry;
+
+#if BH_PLATFORM_LINUX == 1
+    int fd = get_pagemap(memory->memory_data);
+#endif
+
     uint8* memory_data = memory->memory_data;
     uint8* memory_data_end = memory->memory_data_end;
     int i = 0;
     for (uint8* addr = memory->memory_data; addr < memory_data_end; addr += PAGE_SIZE, ++i) {
-        unsigned long pfn = (unsigned long)addr / PAGE_SIZE;
-        off_t offset = sizeof(uint64) * pfn;
-        if (lseek(fd, offset, SEEK_SET) == -1) {
-            perror("Error seeking to pagemap entry");
-            close(fd);
-            return -1;
-        }
-
-        if (read(fd, &pagemap_entry, PAGEMAP_LENGTH) != PAGEMAP_LENGTH) {
-            perror("Error reading pagemap entry");
-            close(fd);
-            return -1;
-        }
-
-        // dirty pageのみdump
-        // if (is_dirty(pagemap_entry)) {
-        if (is_soft_dirty(pagemap_entry)) {
-            // printf("[%x, %x]: dirty page\n", i*PAGE_SIZE, (i+1)*PAGE_SIZE);
+        if (check_soft_dirty(fd, addr)) {
             uint32 offset = (uint64)addr - (uint64)memory_data;
-            // printf("i: %d\n", offset);
             fwrite(&offset, sizeof(uint32), 1, memory_fp);
             fwrite(addr, PAGE_SIZE, 1, memory_fp);
         }
     }
 
+#if BH_PLATFORM_LINUX == 1
     close(fd);
+#endif
     fclose(memory_fp);
     return 0;
 }
