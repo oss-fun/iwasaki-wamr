@@ -7,6 +7,9 @@
 #include "wasm_migration.h"
 #include "wasm_restore.h"
 
+#include "/opt/intel/sgxsdk/include/sgx_tprotected_fs.h"
+
+
 static bool restore_flag;
 void set_restore_flag(bool f)
 {
@@ -63,21 +66,21 @@ debug_local(WASMInterpFrame *frame)
     uint32 param_count = func->param_count;
     uint32 local_count = func->local_count;
 
-    fprintf(stderr, "locals: [");
+    // fprintf(stderr, "locals: [");
     for (uint32 i = 0; i < param_count; i++) {
         switch (func->param_types[i]) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                fprintf(stderr, "%u, ", *(uint32 *)lp);
+                // fprintf(stderr, "%u, ", *(uint32 *)lp);
                 lp++;
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                fprintf(stderr, "%lu, ", *(uint64 *)lp);
+                // fprintf(stderr, "%lu, ", *(uint64 *)lp);
                 lp += 2;
                 break;
             default:
-                printf("TYPE NULL\n");
+                // printf("TYPE NULL\n");
                 break;
         }
     }
@@ -87,20 +90,20 @@ debug_local(WASMInterpFrame *frame)
         switch (func->local_types[i]) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
-                fprintf(stderr, "%u, ", *(uint32 *)lp);
+                // fprintf(stderr, "%u, ", *(uint32 *)lp);
                 lp++;
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
-                fprintf(stderr, "%lu, ", *(uint64 *)lp);
+                // fprintf(stderr, "%lu, ", *(uint64 *)lp);
                 lp += 2;
                 break;
             default:
-                printf("TYPE NULL\n");
+                // printf("TYPE NULL\n");
                 break;
         }
     }
-    fprintf(stderr, "]\n");
+    // fprintf(stderr, "]\n");
 }
 
 
@@ -110,36 +113,36 @@ debug_label_stack(WASMInterpFrame *frame)
     WASMBranchBlock *csp = frame->csp_bottom;
     uint32 csp_num = frame->csp - csp;
     
-    fprintf(stderr, "label stack: [\n");
-    for (int i = 0; i < csp_num; i++, csp++) {
-        // uint8 *begin_addr;
-        fprintf(stderr, "\t{%d",
-            // csp->begin_addr == NULL ? -1 : csp->begin_addr - wasm_get_func_code(frame->function);
-            get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function))
-        );
+    // fprintf(stderr, "label stack: [\n");
+    // for (int i = 0; i < csp_num; i++, csp++) {
+    //     // uint8 *begin_addr;
+    //     fprintf(stderr, "\t{%d",
+    //         // csp->begin_addr == NULL ? -1 : csp->begin_addr - wasm_get_func_code(frame->function);
+    //         get_addr_offset(csp->begin_addr, wasm_get_func_code(frame->function))
+    //     );
 
-        // uint8 *target_addr;
-        fprintf(stderr, ", %d",
-            get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function))
-        );
+    //     // uint8 *target_addr;
+    //     fprintf(stderr, ", %d",
+    //         get_addr_offset(csp->target_addr, wasm_get_func_code(frame->function))
+    //     );
 
-        // uint32 *frame_sp;
-        fprintf(stderr, ", %d",
-            get_addr_offset(csp->frame_sp, frame->sp_bottom)
-        );
+    //     // uint32 *frame_sp;
+    //     fprintf(stderr, ", %d",
+    //         get_addr_offset(csp->frame_sp, frame->sp_bottom)
+    //     );
 
-        // uint32 *frame_tsp
-        // // fprintf(stderr, ", %d",
-        // //     get_addr_offset(csp->frame_tsp, frame->tsp_bottom)
-        // );
+    //     // uint32 *frame_tsp
+    //     // // fprintf(stderr, ", %d",
+    //     // //     get_addr_offset(csp->frame_tsp, frame->tsp_bottom)
+    //     // );
 
-        // uint32 cell_num;
-        fprintf(stderr, ", %d", csp->cell_num);
+    //     // uint32 cell_num;
+    //     fprintf(stderr, ", %d", csp->cell_num);
 
-        // uint32 count;
-        // fprintf(stderr, ", %d}\n", csp->count);
-    }
-    fprintf(stderr, "]\n");
+    //     // uint32 count;
+    //     // fprintf(stderr, ", %d}\n", csp->count);
+    // }
+    // fprintf(stderr, "]\n");
 }
 
 static void
@@ -337,7 +340,7 @@ int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstan
                 fread(*global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
-                perror("wasm_restore_global:type error:A\n");
+                // perror("wasm_restore_global:type error:A\n");
                 break;
         }
     }
@@ -348,10 +351,10 @@ int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstan
 
 void debug_addr(const char* name, const char* func_name, int value) {
     if (value == NULL) {
-        fprintf(stderr, "debug_addr: %s value is NULL\n", name);
+        // fprintf(stderr, "debug_addr: %s value is NULL\n", name);
         return;
     }
-    printf("%s in %s: %p\n", name, func_name, (int)value);
+    // printf("%s in %s: %p\n", name, func_name, (int)value);
 }
 
 int wasm_restore_program_counter(
@@ -393,21 +396,21 @@ int wasm_restore(WASMModuleInstance **module,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     wasm_restore_memory(*module, memory, maddr);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
     // printf("Success to restore linear memory\n");
 
     // restore globals
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     wasm_restore_global(*module, *globals, global_data, global_addr);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
     // printf("Success to restore globals\n");
 
     // restore program counter
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     wasm_restore_program_counter(*module, frame_ip);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
     // printf("Success to program counter\n");
 
     return 0;

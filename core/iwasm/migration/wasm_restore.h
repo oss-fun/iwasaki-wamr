@@ -12,16 +12,16 @@ wasm_restore_stack(WASMExecEnv **exec_env);
 
 static inline void
 debug_wasm_interp_frame(WASMInterpFrame *frame, WASMFunctionInstance* base_func_addr) {
-    int cnt = 0;
-    printf("===         dump frames         ===\n");
-    do {
-        cnt++;
-        if (frame->function == NULL)
-            printf("frame: %d,          func idx: DUMMY\n", cnt);
-        else 
-            printf("frame: %d          func idx: %d\n", cnt, frame->function-base_func_addr);
-    } while(frame = frame->prev_frame);
-    printf("===         dump frames         ===\n");
+    // int cnt = 0;
+    // printf("===         dump frames         ===\n");
+    // do {
+    //     cnt++;
+    //     if (frame->function == NULL)
+    //         printf("frame: %d,          func idx: DUMMY\n", cnt);
+    //     else 
+    //         printf("frame: %d          func idx: %d\n", cnt, frame->function-base_func_addr);
+    // } while(frame = frame->prev_frame);
+    // printf("===         dump frames         ===\n");
 };
 
 int wasm_restore(WASMModuleInstance **module,

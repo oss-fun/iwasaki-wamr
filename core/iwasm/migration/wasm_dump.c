@@ -22,7 +22,7 @@ int64_t get_time(struct timespec ts1, struct timespec ts2) {
 }
 
 /* common_functions */
-int dump_value(void *ptr, size_t size, size_t nmemb, FILE *stream) {
+int dump_value(void *ptr, size_t size, size_t nmemb, SGX_FILE *stream) {
     if (stream == NULL) {
         return -1;
     }
@@ -65,7 +65,7 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
 
 // func_instの先頭からlimitまでのopcodeを出力する
 int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* func, uint32 limit) {
-    FILE *fp = fopen("wamr_opcode.log", "a");
+    SGX_FILE *fp = sgx_fopen_auto_key("wamr_opcode.log", "a");
     if (fp == NULL) return -1;
 
     fprintf(fp, "fidx: %d\n", func - module->e->functions);
@@ -118,7 +118,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     uint64 tablemap_offset_addr;
     fread(&ffidx, sizeof(uint32), 1, tablemap_func);
     if (fidx != ffidx) {
-        perror("tablemap_funcがおかしい\n");
+        // perror("tablemap_funcがおかしい\n");
         exit(1);
     }
     fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
@@ -140,7 +140,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
        pre_type_table_addr = type_table_addr;
     }
     if (feof(tablemap_offset)) {
-        perror("tablemap_offsetがおかしい\n");
+        // perror("tablemap_offsetがおかしい\n");
         exit(1);
     }
     // type_table_addr = pre_type_table_addr;
@@ -301,7 +301,7 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
     // プロセスのpagemapを開く
     fd = open("/proc/self/pagemap", O_RDONLY);
     if (fd == -1) {
-        perror("Error opening pagemap");
+        // perror("Error opening pagemap");
         return -1;
     }
 
@@ -309,7 +309,7 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
     unsigned long pfn = (unsigned long)memory->memory_data / PAGE_SIZE;
     off_t offset = sizeof(uint64) * pfn;
     if (lseek(fd, offset, SEEK_SET) == -1) {
-        perror("Error seeking to pagemap entry");
+        // perror("Error seeking to pagemap entry");
         close(fd);
         return -1;
     }
@@ -321,13 +321,13 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
         unsigned long pfn = (unsigned long)addr / PAGE_SIZE;
         off_t offset = sizeof(uint64) * pfn;
         if (lseek(fd, offset, SEEK_SET) == -1) {
-            perror("Error seeking to pagemap entry");
+            // perror("Error seeking to pagemap entry");
             close(fd);
             return -1;
         }
 
         if (read(fd, &pagemap_entry, PAGEMAP_LENGTH) != PAGEMAP_LENGTH) {
-            perror("Error reading pagemap entry");
+            // perror("Error reading pagemap entry");
             close(fd);
             return -1;
         }
@@ -354,7 +354,7 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
     dump_dirty_memory(memory);
 
 
-    printf("page_count: %d\n", memory->cur_page_count);
+    // printf("page_count: %d\n", memory->cur_page_count);
     fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
 
     fclose(mem_size_fp);
@@ -371,7 +371,7 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
     const char *file = "global.img";
     fp = fopen(file, "wb");
     if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
+        // fprintf(stderr, "failed to open %s\n", file);
         return -1;
     }
 
@@ -409,7 +409,7 @@ int wasm_dump_program_counter(
     const char *file = "program_counter.img";
     fp = fopen(file, "wb");
     if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
+        // fprintf(stderr, "failed to open %s\n", file);
         return -1;
     }
 
@@ -445,7 +445,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_memory(memory);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump linear memory\n");
         return rc;
@@ -455,7 +455,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_global(module, globals, global_data);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump globals\n");
         return rc;
@@ -465,7 +465,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_program_counter(module, cur_func, frame_ip);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump program_counter\n");
         return rc;
@@ -475,7 +475,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     rc = wasm_dump_stack(exec_env, frame);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
-    fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
+    // fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;

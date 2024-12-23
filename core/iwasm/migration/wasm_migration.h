@@ -4,6 +4,9 @@
 // #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
+#include "/opt/intel/sgxsdk/include/sgx_tprotected_fs.h"
+
+
 static inline uint8 *
 get_global_addr_for_migration(uint8 *global_data, WASMGlobalInstance *global)
 {
@@ -31,10 +34,10 @@ set_addr_offset(void* base, uint32 offset)
     else return base + offset;
 }
 
-static FILE* open_image(const char* file, const char* flag) {
-    FILE *fp = fopen(file, flag);
+static SGX_FILE* open_image(const char* file, const char* flag) {
+    SGX_FILE *fp = sgx_fopen_auto_key(file, flag);
     if (fp == NULL) {
-        fprintf(stderr, "failed to open %s\n", file);
+        // fprintf(stderr, "failed to open %s\n", file);
         return NULL;
     }
     return fp;
