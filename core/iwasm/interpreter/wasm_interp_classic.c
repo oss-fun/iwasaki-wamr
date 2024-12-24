@@ -1590,7 +1590,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     // リストアの初期化時間の計測(終了)
     struct timespec ts1;
     clock_gettime(CLOCK_MONOTONIC, &ts1);
-    fprintf(stderr, "boot_end, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
+    // fprintf(stderr, "boot_end, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
 
     if (get_restore_flag()) {
         // bool done_flag;
@@ -1600,7 +1600,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         clock_gettime(CLOCK_MONOTONIC, &ts1);
         frame = wasm_restore_stack(&exec_env);
         clock_gettime(CLOCK_MONOTONIC, &ts2);
-        fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
+        // fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
         if (frame == NULL) {
             perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
             return;

@@ -34,8 +34,8 @@ set_addr_offset(void* base, uint32 offset)
     else return base + offset;
 }
 
-static SGX_FILE* open_image(const char* file, const char* flag) {
-    SGX_FILE *fp = sgx_fopen_auto_key(file, flag);
+static FILE* open_image(const char* file, const char* flag) {
+    FILE *fp = fopen(file, flag);
     if (fp == NULL) {
         // fprintf(stderr, "failed to open %s\n", file);
         return NULL;
