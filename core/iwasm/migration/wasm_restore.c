@@ -146,7 +146,7 @@ debug_label_stack(WASMInterpFrame *frame)
 }
 
 static void
-_restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
+_restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, SGX_FILE *fp)
 {
     WASMModuleInstance *module_inst = exec_env->module_inst;
     WASMFunctionInstance *func = frame->function;
@@ -162,25 +162,25 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
     // リターンアドレス
     WASMInterpFrame* prev_frame = frame->prev_frame;
     uint32 fidx, offset;
-    fread(&fidx, sizeof(uint32), 1, fp);
-    fread(&offset, sizeof(uint32), 1, fp);
+    sgx_fread(&fidx, sizeof(uint32), 1, fp);
+    sgx_fread(&offset, sizeof(uint32), 1, fp);
     if (prev_frame->function != NULL)
         prev_frame->ip = wasm_get_func_code(prev_frame->function) + offset;
 
     // 型スタックのサイズ
     uint32 locals = func->param_count + func->local_count;
     uint32 full_type_stack_size, type_stack_size;
-    fread(&full_type_stack_size, sizeof(uint32), 1, fp);
+    sgx_fread(&full_type_stack_size, sizeof(uint32), 1, fp);
     type_stack_size = full_type_stack_size - locals;                                      // 統一フォーマットでは、ローカルも型/値スタックに入れているが、WAMRの型/値スタックのサイズはローカル抜き
     // frame->tsp = frame->tsp_bottom + type_stack_size;
 
     // 型スタックの中身
-    fseek(fp, sizeof(uint8)*locals, SEEK_CUR);                      // localのやつはWAMRでは必要ないので飛ばす
+    sgx_fseek(fp, sizeof(uint8)*locals, SEEK_CUR);                      // localのやつはWAMRでは必要ないので飛ばす
 
     uint8 type_stack[type_stack_size];
     // uint32* tsp_bottom = frame->tsp_bottom;
     for (uint32 i = 0; i < type_stack_size; ++i) {
-        fread(&type_stack[i], sizeof(uint8), 1, fp);
+        sgx_fread(&type_stack[i], sizeof(uint8), 1, fp);
     }
 
     // 値スタックのサイズ
@@ -193,13 +193,13 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
 
     // 値スタックの中身
     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
-    fread(frame->lp, sizeof(uint32), local_cell_num, fp);
+    sgx_fread(frame->lp, sizeof(uint32), local_cell_num, fp);
     // debug_local(frame);
-    fread(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
+    sgx_fread(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
 
     // ラベルスタックのサイズ
     uint32 ctrl_stack_size;
-    fread(&ctrl_stack_size, sizeof(uint32), 1, fp);
+    sgx_fread(&ctrl_stack_size, sizeof(uint32), 1, fp);
     frame->csp = frame->csp_bottom + ctrl_stack_size;
 
 
@@ -209,26 +209,26 @@ _restore_stack(WASMExecEnv *exec_env, WASMInterpFrame *frame, FILE *fp)
         uint64 offset;
 
         // uint8 *begin_addr;
-        fread(&offset, sizeof(uint32), 1, fp);
+        sgx_fread(&offset, sizeof(uint32), 1, fp);
         csp->begin_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint8 *target_addr;
-        fread(&offset, sizeof(uint32), 1, fp);
+        sgx_fread(&offset, sizeof(uint32), 1, fp);
         csp->target_addr = set_addr_offset(wasm_get_func_code(frame->function), offset);
 
         // uint32 *frame_sp;
-        fread(&offset, sizeof(uint32), 1, fp);
+        sgx_fread(&offset, sizeof(uint32), 1, fp);
         csp->frame_sp = set_addr_offset(frame->sp_bottom, offset);
 
         // uint32 *frame_tsp
-        // fread(&offset, sizeof(uint32), 1, fp);
+        // sgx_fread(&offset, sizeof(uint32), 1, fp);
         // csp->frame_tsp = set_addr_offset(frame->tsp_bottom, offset);
 
         // uint32 cell_num;
-        fread(&csp->cell_num, sizeof(uint32), 1, fp);
+        sgx_fread(&csp->cell_num, sizeof(uint32), 1, fp);
 
         // uint32 count;
-        // fread(&csp->count, sizeof(uint32), 1, fp);
+        // sgx_fread(&csp->count, sizeof(uint32), 1, fp);
     }
 }
 
@@ -242,12 +242,12 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     frame = prev_frame;
     WASMFunctionInstance *function;
     uint32 func_idx, frame_size, all_cell_num;
-    FILE *fp;
+    SGX_FILE *fp;
 
     uint32 frame_stack_size;
     fp = open_image("frame.img", "rb");
-    fread(&frame_stack_size, sizeof(uint32), 1, fp);
-    fclose(fp);
+    sgx_fread(&frame_stack_size, sizeof(uint32), 1, fp);
+    sgx_fclose(fp);
 
     char file[32];
     uint32 fidx = 0;
@@ -255,7 +255,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
         sprintf(file, "stack%d.img", i);
         fp = open_image(file, "rb");
 
-        fread(&fidx, sizeof(uint32), 1, fp);
+        sgx_fread(&fidx, sizeof(uint32), 1, fp);
         // 関数からスタックサイズを計算し,ALLOC
         // 前のframe2のenter_func_idxが、このframe->functionに対応
         function = module_inst->e->functions + fidx;
@@ -276,7 +276,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
         _restore_stack(exec_env, frame, fp);
 
         prev_frame = frame;
-        fclose(fp);
+        sgx_fclose(fp);
     }
 
     // debug_wasm_interp_frame(frame, module_inst->e->functions);
@@ -287,57 +287,57 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     return frame;
 }
 
-void restore_dirty_memory(WASMMemoryInstance **memory, FILE* memory_fp) {
+void restore_dirty_memory(WASMMemoryInstance **memory, SGX_FILE* memory_fp) {
     const int PAGE_SIZE = 4096;
-    while (!feof(memory_fp)) {
-        if (feof(memory_fp)) break;
+    while (!sgx_feof(memory_fp)) {
+        if (sgx_feof(memory_fp)) break;
         uint32 offset;
         uint32 len;
-        len = fread(&offset, sizeof(uint32), 1, memory_fp);
+        len = sgx_fread(&offset, sizeof(uint32), 1, memory_fp);
         if (len == 0) break;
         // printf("len: %d\n", len);
         // printf("i: %d\n", offset);
 
         uint8* addr = (*memory)->memory_data + offset;
-        len = fread(addr, PAGE_SIZE, 1, memory_fp);
+        len = sgx_fread(addr, PAGE_SIZE, 1, memory_fp);
         // printf("PAGESIZE: %d\n", len);
     }
 }
 
 int wasm_restore_memory(WASMModuleInstance *module, WASMMemoryInstance **memory, uint8** maddr) {
-    FILE* memory_fp = open_image("memory.img", "rb");
-    FILE* mem_size_fp = open_image("mem_page_count.img", "rb");
+    SGX_FILE* memory_fp = open_image("memory.img", "rb");
+    SGX_FILE* mem_size_fp = open_image("mem_page_count.img", "rb");
 
     // restore page_count
     uint32 page_count;
-    fread(&page_count, sizeof(uint32), 1, mem_size_fp);
+    sgx_fread(&page_count, sizeof(uint32), 1, mem_size_fp);
     wasm_enlarge_memory(module, page_count- (*memory)->cur_page_count);
     *maddr = page_count * (*memory)->num_bytes_per_page;
 
     restore_dirty_memory(memory, memory_fp);
     // restore memory_data
-    // fread((*memory)->memory_data, sizeof(uint8),
+    // sgx_fread((*memory)->memory_data, sizeof(uint8),
     //         (*memory)->num_bytes_per_page * (*memory)->cur_page_count, memory_fp);
 
-    fclose(memory_fp);
-    fclose(mem_size_fp);
+    sgx_fclose(memory_fp);
+    sgx_fclose(mem_size_fp);
     return 0;
 }
 
 int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstance *globals, uint8 **global_data, uint8 **global_addr) {
-    FILE* fp = open_image("global.img", "rb");
+    SGX_FILE* fp = open_image("global.img", "rb");
 
     for (int i = 0; i < module->e->global_count; i++) {
         switch (globals[i].type) {
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
                 *global_addr = get_global_addr_for_migration(*global_data, globals + i);
-                fread(*global_addr, sizeof(uint32), 1, fp);
+                sgx_fread(*global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
                 *global_addr = get_global_addr_for_migration(*global_data, globals + i);
-                fread(*global_addr, sizeof(uint64), 1, fp);
+                sgx_fread(*global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
                 // perror("wasm_restore_global:type error:A\n");
@@ -345,7 +345,7 @@ int wasm_restore_global(const WASMModuleInstance *module, const WASMGlobalInstan
         }
     }
 
-    fclose(fp);
+    sgx_fclose(fp);
     return 0;
 }
 
@@ -361,11 +361,11 @@ int wasm_restore_program_counter(
     WASMModuleInstance *module,
     uint8 **frame_ip)
 {
-    FILE* fp = open_image("program_counter.img", "rb");
+    SGX_FILE* fp = open_image("program_counter.img", "rb");
 
     uint32 fidx, offset;
-    fread(&fidx, sizeof(uint32), 1, fp);
-    fread(&offset, sizeof(uint32), 1, fp);
+    sgx_fread(&fidx, sizeof(uint32), 1, fp);
+    sgx_fread(&offset, sizeof(uint32), 1, fp);
 
     *frame_ip = wasm_get_func_code(module->e->functions + fidx) + offset;
 

@@ -26,41 +26,41 @@ int dump_value(void *ptr, size_t size, size_t nmemb, SGX_FILE *stream) {
     if (stream == NULL) {
         return -1;
     }
-    return fwrite(ptr, size, nmemb, stream);
+    return sgx_fwrite(ptr, size, nmemb, stream);
 }
 
 int debug_memories(WASMModuleInstance *module) {
-    printf("=== debug memories ===\n");
-    printf("memory_count: %d\n", module->memory_count);
+    // printf("=== debug memories ===\n");
+    // printf("memory_count: %d\n", module->memory_count);
     
-    // bytes_per_page
-    for (int i = 0; i < module->memory_count; i++) {
-        WASMMemoryInstance *memory = (WASMMemoryInstance *)(module->memories[i]);
-        printf("%d) bytes_per_page: %d\n", i, memory->num_bytes_per_page);
-        printf("%d) cur_page_count: %d\n", i, memory->cur_page_count);
-        printf("%d) max_page_count: %d\n", i, memory->max_page_count);
-        printf("\n");
-    }
+    // // bytes_per_page
+    // for (int i = 0; i < module->memory_count; i++) {
+    //     WASMMemoryInstance *memory = (WASMMemoryInstance *)(module->memories[i]);
+    //     printf("%d) bytes_per_page: %d\n", i, memory->num_bytes_per_page);
+    //     printf("%d) cur_page_count: %d\n", i, memory->cur_page_count);
+    //     printf("%d) max_page_count: %d\n", i, memory->max_page_count);
+    //     printf("\n");
+    // }
 
-    printf("=== debug memories ===\n");
+    // printf("=== debug memories ===\n");
 }
 
 // 積まれてるframe stackを出力する
 void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
     WASMModuleInstance *module = exec_env->module_inst;
 
-    int cnt = 0;
-    printf("=== DEBUG Frame Stack ===\n");
-    do {
-        cnt++;
-        if (frame->function == NULL) {
-            printf("%d) func_idx: -1\n", cnt);
-        }
-        else {
-            printf("%d) func_idx: %d\n", cnt, frame->function - module->e->functions);
-        }
-    } while (frame = frame->prev_frame);
-    printf("=== DEBUG Frame Stack ===\n");
+    // int cnt = 0;
+    // printf("=== DEBUG Frame Stack ===\n");
+    // do {
+    //     cnt++;
+    //     if (frame->function == NULL) {
+    //         printf("%d) func_idx: -1\n", cnt);
+    //     }
+    //     else {
+    //         printf("%d) func_idx: %d\n", cnt, frame->function - module->e->functions);
+    //     }
+    // } while (frame = frame->prev_frame);
+    // printf("=== DEBUG Frame Stack ===\n");
 }
 
 // func_instの先頭からlimitまでのopcodeを出力する
@@ -78,7 +78,7 @@ int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* fun
         if (ip >= ip_end) break;
     }
 
-    fclose(fp);
+    sgx_fclose(fp);
     return 0;
 }
 
@@ -105,56 +105,56 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 
 // TODO: コードごちゃごちゃで読めないので、整理する
 uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool is_return_address) {
-    FILE *tablemap_func = fopen("tablemap_func", "rb");
+    SGX_FILE *tablemap_func = sgx_fopen_auto_key("tablemap_func", "rb");
     if (!tablemap_func) printf("not found tablemap_func\n");
-    FILE *tablemap_offset = fopen("tablemap_offset", "rb");
+    SGX_FILE *tablemap_offset = sgx_fopen_auto_key("tablemap_offset", "rb");
     if (!tablemap_func) printf("not found tablemap_offset\n");
-    FILE *type_table = fopen("type_table", "rb");
+    SGX_FILE *type_table = sgx_fopen_auto_key("type_table", "rb");
     if (!tablemap_func) printf("not found type_table\n");
     
     /// tablemap_func
-    fseek(tablemap_func, fidx*sizeof(uint32)*3, SEEK_SET);
+    sgx_fseek(tablemap_func, fidx*sizeof(uint32)*3, SEEK_SET);
     uint32 ffidx;
     uint64 tablemap_offset_addr;
-    fread(&ffidx, sizeof(uint32), 1, tablemap_func);
+    sgx_fread(&ffidx, sizeof(uint32), 1, tablemap_func);
     if (fidx != ffidx) {
         // perror("tablemap_funcがおかしい\n");
         exit(1);
     }
-    fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
+    sgx_fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
 
     /// tablemap_offset
-    fseek(tablemap_offset, tablemap_offset_addr, SEEK_SET);
+    sgx_fseek(tablemap_offset, tablemap_offset_addr, SEEK_SET);
     // 関数fidxのローカルを取得
     uint32 locals_size;
-    fread(&locals_size, sizeof(uint32), 1, tablemap_offset);
+    sgx_fread(&locals_size, sizeof(uint32), 1, tablemap_offset);
     uint8 locals[locals_size];
-    fread(locals, sizeof(uint8), locals_size, tablemap_offset);
+    sgx_fread(locals, sizeof(uint8), locals_size, tablemap_offset);
     // 対応するoffsetまで移動
     uint32 ooffset;
     uint64 type_table_addr, pre_type_table_addr;
-    while(!feof(tablemap_offset)) {
-       fread(&ooffset, sizeof(uint32), 1, tablemap_offset); 
-       fread(&type_table_addr, sizeof(uint64), 1, tablemap_offset); 
+    while(!sgx_feof(tablemap_offset)) {
+       sgx_fread(&ooffset, sizeof(uint32), 1, tablemap_offset); 
+       sgx_fread(&type_table_addr, sizeof(uint64), 1, tablemap_offset); 
        if (offset == ooffset) break;
        pre_type_table_addr = type_table_addr;
     }
-    if (feof(tablemap_offset)) {
+    if (sgx_feof(tablemap_offset)) {
         // perror("tablemap_offsetがおかしい\n");
         exit(1);
     }
     // type_table_addr = pre_type_table_addr;
 
     /// type_table
-    fseek(type_table, type_table_addr, SEEK_SET);
+    sgx_fseek(type_table, type_table_addr, SEEK_SET);
     uint32 stack_size;
-    fread(&stack_size, sizeof(uint32), 1, type_table);
+    sgx_fread(&stack_size, sizeof(uint32), 1, type_table);
     uint8 stack[stack_size];
-    fread(stack, sizeof(uint8), stack_size, type_table);
+    sgx_fread(stack, sizeof(uint8), stack_size, type_table);
 
     if (is_return_address) {
-        fread(&stack_size, sizeof(uint32), 1, type_table);
-        fread(stack, sizeof(uint8), stack_size, type_table);
+        sgx_fread(&stack_size, sizeof(uint32), 1, type_table);
+        sgx_fread(stack, sizeof(uint8), stack_size, type_table);
     }
 
     // uint8 type_stack[locals_size + stack_size];
@@ -169,9 +169,9 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     // }
     // printf("]\n");
 
-    fclose(tablemap_func);
-    fclose(tablemap_offset);
-    fclose(type_table);
+    sgx_fclose(tablemap_func);
+    sgx_fclose(tablemap_offset);
+    sgx_fclose(type_table);
 
     *type_stack_size = locals_size + stack_size;
     return type_stack;
@@ -179,7 +179,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
 
 /* wasm_dump */
 static void
-_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *fp, bool is_top)
+_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, SGX_FILE *fp, bool is_top)
 {
     int i;
     WASMModuleInstance *module = exec_env->module_inst;
@@ -192,15 +192,15 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     WASMInterpFrame* prev_frame = (frame->prev_frame->function ? frame->prev_frame : frame);
     uint32 fidx = prev_frame->function - module->e->functions;
     uint32 offset = prev_frame->ip - wasm_get_func_code(prev_frame->function);
-    fwrite(&fidx, sizeof(uint32), 1, fp);
-    fwrite(&offset, sizeof(uint32), 1, fp);
+    sgx_fwrite(&fidx, sizeof(uint32), 1, fp);
+    sgx_fwrite(&offset, sizeof(uint32), 1, fp);
 
     // 型スタックのサイズ
     WASMFunctionInstance *func = frame->function;
     uint32 locals = func->param_count + func->local_count;
     // uint32 type_stack_size = (frame->tsp - frame->tsp_bottom);
     // uint32 full_type_stack_size = type_stack_size + locals;
-    // fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
+    // sgx_fwrite(&full_type_stack_size, sizeof(uint32), 1, fp);
 
     // 型スタックの中身
     uint32 type_stack_size_from_file;
@@ -208,19 +208,19 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     uint32 offset_now = frame->ip - wasm_get_func_code(frame->function);
     // printf("[DEBUG]now addr: (%d, %d)\n", fidx_now, offset_now);
     uint8* type_stack_from_file = get_type_stack(fidx_now, offset_now, &type_stack_size_from_file, !is_top);
-    fwrite(&type_stack_size_from_file, sizeof(uint32), 1, fp);
-    fwrite(type_stack_from_file, sizeof(uint8), type_stack_size_from_file, fp);
+    sgx_fwrite(&type_stack_size_from_file, sizeof(uint32), 1, fp);
+    sgx_fwrite(type_stack_from_file, sizeof(uint8), type_stack_size_from_file, fp);
     free(type_stack_from_file);
 
     // 値スタックの中身
     uint32 local_cell_num = func->param_cell_num + func->local_cell_num;
     uint32 value_stack_size = frame->sp - frame->sp_bottom;
-    fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
-    fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
+    sgx_fwrite(frame->lp, sizeof(uint32), local_cell_num, fp);
+    sgx_fwrite(frame->sp_bottom, sizeof(uint32), value_stack_size, fp);
 
     // ラベルスタックのサイズ
     uint32 ctrl_stack_size = frame->csp - frame->csp_bottom;
-    fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
+    sgx_fwrite(&ctrl_stack_size, sizeof(uint32), 1, fp);
 
     // ラベルスタックの中身
     WASMBranchBlock *csp = frame->csp_bottom;
@@ -229,25 +229,25 @@ _dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame, struct FILE *f
     for (i = 0; i < ctrl_stack_size; ++i, ++csp) {
         // uint8 *begin_addr;
         addr = get_addr_offset(csp->begin_addr, ip_start);
-        fwrite(&addr, sizeof(uint32), 1, fp);
+        sgx_fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint8 *target_addr;
         addr = get_addr_offset(csp->target_addr, ip_start);
-        fwrite(&addr, sizeof(uint32), 1, fp);
+        sgx_fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint32 *frame_sp;
         addr = get_addr_offset(csp->frame_sp, frame->sp_bottom);
-        fwrite(&addr, sizeof(uint32), 1, fp);
+        sgx_fwrite(&addr, sizeof(uint32), 1, fp);
 
         // uint32 *frame_tsp;
         // addr = get_addr_offset(csp->frame_tsp, frame->tsp_bottom);
-        // fwrite(&addr, sizeof(uint32), 1, fp);
+        // sgx_fwrite(&addr, sizeof(uint32), 1, fp);
         
         // uint32 cell_num;
-        fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
+        sgx_fwrite(&csp->cell_num, sizeof(uint32), 1, fp);
 
         // uint32 count;
-        // fwrite(&csp->count, sizeof(uint32), 1, fp);
+        // sgx_fwrite(&csp->count, sizeof(uint32), 1, fp);
     }
 }
 
@@ -267,19 +267,19 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
         ++i;
         sprintf(file, "stack%d.img", i);
-        FILE *fp = open_image(file, "wb");
+        SGX_FILE *fp = open_image(file, "wb");
 
         uint32 entry_fidx = frame->function - module->e->functions;
-        fwrite(&entry_fidx, sizeof(uint32), 1, fp);
+        sgx_fwrite(&entry_fidx, sizeof(uint32), 1, fp);
 
         _dump_stack(exec_env, frame, fp, (i==1));
-        fclose(fp);
+        sgx_fclose(fp);
     } while(frame = frame->prev_frame);
 
     // frame stackのサイズを保存
-    FILE *fp = open_image("frame.img", "wb");
-    fwrite(&i, sizeof(uint32), 1, fp);
-    fclose(fp);
+    SGX_FILE *fp = open_image("frame.img", "wb");
+    sgx_fwrite(&i, sizeof(uint32), 1, fp);
+    sgx_fclose(fp);
 
     return 0;
 }
@@ -295,7 +295,7 @@ int is_soft_dirty(uint64 pagemap_entry) {
 int dump_dirty_memory(WASMMemoryInstance *memory) {
     const int PAGEMAP_LENGTH = 8;
     const int PAGE_SIZE = 4096;
-    FILE *memory_fp = open_image("memory.img", "wb");
+    SGX_FILE *memory_fp = open_image("memory.img", "wb");
     int fd;
     uint64 pagemap_entry;
     // プロセスのpagemapを開く
@@ -338,38 +338,38 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
             // printf("[%x, %x]: dirty page\n", i*PAGE_SIZE, (i+1)*PAGE_SIZE);
             uint32 offset = (uint64)addr - (uint64)memory_data;
             // printf("i: %d\n", offset);
-            fwrite(&offset, sizeof(uint32), 1, memory_fp);
-            fwrite(addr, PAGE_SIZE, 1, memory_fp);
+            sgx_fwrite(&offset, sizeof(uint32), 1, memory_fp);
+            sgx_fwrite(addr, PAGE_SIZE, 1, memory_fp);
         }
     }
 
     close(fd);
-    fclose(memory_fp);
+    sgx_fclose(memory_fp);
     return 0;
 }
 
 int wasm_dump_memory(WASMMemoryInstance *memory) {
-    FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
+    SGX_FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
 
     dump_dirty_memory(memory);
 
 
     // printf("page_count: %d\n", memory->cur_page_count);
-    fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
+    sgx_fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
 
-    fclose(mem_size_fp);
+    sgx_fclose(mem_size_fp);
 
     // デバッグのために、すべてのメモリも保存
-    // FILE *all_memory_fp = open_image("all_memory.img", "wb");
-    // fwrite(memory->memory_data, sizeof(uint8),
+    // SGX_FILE *all_memory_fp = open_image("all_memory.img", "wb");
+    // sgx_fwrite(memory->memory_data, sizeof(uint8),
     //        memory->num_bytes_per_page * memory->cur_page_count, all_memory_fp);
-    // fclose(all_memory_fp);
+    // sgx_fclose(all_memory_fp);
 }
 
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
-    FILE *fp;
+    SGX_FILE *fp;
     const char *file = "global.img";
-    fp = fopen(file, "wb");
+    fp = sgx_fopen_auto_key(file, "wb");
     if (fp == NULL) {
         // fprintf(stderr, "failed to open %s\n", file);
         return -1;
@@ -382,12 +382,12 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
             case VALUE_TYPE_I32:
             case VALUE_TYPE_F32:
                 global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint32), 1, fp);
+                sgx_fwrite(global_addr, sizeof(uint32), 1, fp);
                 break;
             case VALUE_TYPE_I64:
             case VALUE_TYPE_F64:
                 global_addr = get_global_addr_for_migration(global_data, (globals+i));
-                fwrite(global_addr, sizeof(uint64), 1, fp);
+                sgx_fwrite(global_addr, sizeof(uint64), 1, fp);
                 break;
             default:
                 printf("type error:B\n");
@@ -395,7 +395,7 @@ int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, ui
         }
     }
 
-    fclose(fp);
+    sgx_fclose(fp);
     return 0;
 }
 
@@ -405,9 +405,9 @@ int wasm_dump_program_counter(
     uint8 *frame_ip
 )
 {
-    FILE *fp;
+    SGX_FILE *fp;
     const char *file = "program_counter.img";
-    fp = fopen(file, "wb");
+    fp = sgx_fopen_auto_key(file, "wb");
     if (fp == NULL) {
         // fprintf(stderr, "failed to open %s\n", file);
         return -1;
