@@ -40,10 +40,10 @@ pal_get_enclave_id(void)
     return g_eid;
 }
 
-int
-ocall_print(const char *str)
+void
+ocall_print(const char* str)
 {
-    return printf("%s", str);
+    printf("%s", str);
 }
 
 static char *

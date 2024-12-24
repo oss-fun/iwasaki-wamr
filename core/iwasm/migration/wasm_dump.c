@@ -63,24 +63,24 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
     // printf("=== DEBUG Frame Stack ===\n");
 }
 
-// func_instの先頭からlimitまでのopcodeを出力する
-int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* func, uint32 limit) {
-    SGX_FILE *fp = sgx_fopen_auto_key("wamr_opcode.log", "a");
-    if (fp == NULL) return -1;
+// // func_instの先頭からlimitまでのopcodeを出力する
+// int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* func, uint32 limit) {
+//     SGX_FILE *fp = sgx_fopen_auto_key("wamr_opcode.log", "a");
+//     if (fp == NULL) return -1;
 
-    fprintf(fp, "fidx: %d\n", func - module->e->functions);
-    uint8 *ip = wasm_get_func_code(func);
-    uint8 *ip_end = wasm_get_func_code_end(func);
+//     fprintf(fp, "fidx: %d\n", func - module->e->functions);
+//     uint8 *ip = wasm_get_func_code(func);
+//     uint8 *ip_end = wasm_get_func_code_end(func);
     
-    for (int i = 0; i < limit; i++) {
-        fprintf(fp, "%d) opcode: 0x%x\n", i+1, *ip);
-        ip = dispatch(ip, ip_end);
-        if (ip >= ip_end) break;
-    }
+//     for (int i = 0; i < limit; i++) {
+//         fprintf(fp, "%d) opcode: 0x%x\n", i+1, *ip);
+//         ip = dispatch(ip, ip_end);
+//         if (ip >= ip_end) break;
+//     }
 
-    sgx_fclose(fp);
-    return 0;
-}
+//     sgx_fclose(fp);
+//     return 0;
+// }
 
 // int debug_flag = 0;
 // ipからip_limまでにopcodeがいくつかるかを返す
@@ -119,7 +119,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     sgx_fread(&ffidx, sizeof(uint32), 1, tablemap_func);
     if (fidx != ffidx) {
         // perror("tablemap_funcがおかしい\n");
-        exit(1);
+        // exit(1);
     }
     sgx_fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
 
@@ -141,7 +141,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
     }
     if (sgx_feof(tablemap_offset)) {
         // perror("tablemap_offsetがおかしい\n");
-        exit(1);
+        // exit(1);
     }
     // type_table_addr = pre_type_table_addr;
 
@@ -266,7 +266,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         if (frame->function == NULL) break;
 
         ++i;
-        sprintf(file, "stack%d.img", i);
+        snprintf(file, "stack%d.img", i);
         SGX_FILE *fp = open_image(file, "wb");
 
         uint32 entry_fidx = frame->function - module->e->functions;

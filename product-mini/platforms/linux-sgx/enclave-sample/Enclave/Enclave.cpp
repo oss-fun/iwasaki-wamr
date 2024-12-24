@@ -21,16 +21,22 @@ typedef int (*os_print_function_t)(const char *message);
 extern void
 os_set_print_function(os_print_function_t pf);
 
-int
-enclave_print(const char *message)
-{
-    int bytes_written = 0;
+void
+    enclave_print(const char *message)
+    {
+        ocall_print(message);
+    }
 
-    if (SGX_SUCCESS != ocall_print(&bytes_written, message))
-        return 0;
+// int
+// enclave_print(const char *message)
+// {
+//     int bytes_written = 0;
 
-    return bytes_written;
-}
+//     if (SGX_SUCCESS != ocall_print(&bytes_written, message))
+//         return 0;
+
+//     return bytes_written;
+// }
 }
 
 typedef enum EcallCmd {
@@ -108,7 +114,7 @@ handle_cmd_init_runtime(uint64 *args, uint32 argc)
         return;
     }
 
-    os_set_print_function(enclave_print);
+    // os_set_print_function(enclave_print);
 
     max_thread_num = (uint32)args[0];
 
@@ -769,7 +775,7 @@ ecall_iwasm_main(uint8_t *wasm_file_buf, uint32_t wasm_file_size)
         return;
     }
 
-    os_set_print_function(enclave_print);
+    // os_set_print_function(enclave_print);
 
     memset(&init_args, 0, sizeof(RuntimeInitArgs));
 
