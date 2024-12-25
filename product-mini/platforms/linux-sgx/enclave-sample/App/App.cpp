@@ -14,6 +14,8 @@
 #include <cstdio>
 #include <cstring>
 
+#include <signal.h>
+
 #include "Enclave_u.h"
 #include "sgx_urts.h"
 #include "pal_api.h"
@@ -663,9 +665,16 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 }
 #endif
 
+void signal_handler(int signum)
+{
+    printf("signal received!\n");
+}
+
 int
 main(int argc, char *argv[])
 {
+    signal(SIGINT, signal_handler);
+    
     int32_t ret = -1;
     char *wasm_file = NULL;
     const char *func_name = NULL;
