@@ -1402,9 +1402,28 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 
+#define DO_CHECKPOINT()                                                     \
+    do {                                                                    \
+        SYNC_ALL_TO_FRAME();                                                \
+        uint8 *dummy_ip;                                                    \
+        uint32 *dummy_sp;                                                   \
+        dummy_ip = frame_ip;                                                \
+        dummy_sp = frame_sp;                                                \
+        int rc = wasm_dump(exec_env, module, memory,                        \
+            globals, global_data, global_addr, cur_func,                    \
+            frame, dummy_ip, dummy_sp, frame_csp,                           \
+            frame_ip_end, else_addr, end_addr, maddr, done_flag);           \
+        if (rc < 0) {                                                       \
+            perror("failed to dump\n");                                     \
+            exit(1);                                                        \
+        }                                                                   \
+        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);                  \
+        exit(0);                                                            \
+    } while(0)                                                              
+
 #define CHECK_DUMP()                                                        \
-    if (wasm_get_checkpoint()) {                                                         \
-        goto migration_async;                                               \
+    if (wasm_get_checkpoint()) {                                            \
+        DO_CHECKPOINT();                                                    \
     }
 
 // #define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++]
@@ -1644,24 +1663,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         opcode = *frame_ip++;
         switch (opcode) {
 #else
-migration_async:
-    if (wasm_get_checkpoint()) {
-        SYNC_ALL_TO_FRAME();
-        uint8 *dummy_ip;
-        uint32 *dummy_sp;
-        dummy_ip = frame_ip;
-        dummy_sp = frame_sp;
-        int rc = wasm_dump(exec_env, module, memory, 
-            globals, global_data, global_addr, cur_func,
-            frame, dummy_ip, dummy_sp, frame_csp,
-            frame_ip_end, else_addr, end_addr, maddr, done_flag);
-        if (rc < 0) {
-            perror("failed to dump\n");
-            exit(1);
-        }
-        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
-        exit(0);     
-    }
     FETCH_OPCODE_AND_DISPATCH();
 #endif
             /* control instructions */
