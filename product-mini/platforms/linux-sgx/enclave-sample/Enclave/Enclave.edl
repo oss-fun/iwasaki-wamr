@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
 
-#define WASM_ENABLE_SGX_IPFS 0
+#define WASM_ENABLE_SGX_IPFS 1
 #define WASM_ENABLE_LIB_RATS 0
 
 enclave {
@@ -29,6 +29,6 @@ enclave {
 
     untrusted {
         /* define OCALLs here. */
-        int ocall_print([in, string]const char* str);
+        void ocall_print([in, string]const char* str);
     };
 };

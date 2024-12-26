@@ -1491,9 +1491,9 @@ static void clear_refs() {
     char *v = "4";
 
     fd = open("/proc/self/clear_refs", O_WRONLY);
-    if (write(fd, v, 3) < 3) {
-        perror("Can't clear soft-dirty bit");
-    }
+    // if (write(fd, v, 3) < 3) {
+        // perror("Can't clear soft-dirty bit");
+    // }
     close(fd);
 }
 
@@ -1604,7 +1604,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     // リストアの初期化時間の計測(終了)
     struct timespec ts1;
     clock_gettime(CLOCK_MONOTONIC, &ts1);
-    fprintf(stderr, "boot_end, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
+    // fprintf(stderr, "boot_end, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
 
     if (get_restore_flag()) {
         // bool done_flag;
@@ -1614,9 +1614,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         clock_gettime(CLOCK_MONOTONIC, &ts1);
         frame = wasm_restore_stack(&exec_env);
         clock_gettime(CLOCK_MONOTONIC, &ts2);
-        fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
+        // fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
         if (frame == NULL) {
-            perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
+            // perror("Error:wasm_interp_func_bytecode:frame is NULL\n");
             return;
         }
         // debug_wasm_interp_frame(frame, module->e->functions);
@@ -1624,11 +1624,11 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         cur_func = frame->function;
         prev_frame = frame->prev_frame;
         if (cur_func == NULL) {
-            perror("Error:wasm_interp_func_bytecode:cur_func is null\n");
+            // perror("Error:wasm_interp_func_bytecode:cur_func is null\n");
             return;
         }
         if (prev_frame == NULL) {
-            perror("Error:wasm_interp_func_bytecode:prev_frame is null\n");
+            // perror("Error:wasm_interp_func_bytecode:prev_frame is null\n");
             return;
         }
 
@@ -1640,7 +1640,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
                         &frame_ip_end, &else_addr, &end_addr, &maddr, &done_flag);
         if (rc < 0) {
             // error
-            perror("failed to restore\n");
+            // perror("failed to restore\n");
             return;
         }
         frame_ip = dummy_ip;
