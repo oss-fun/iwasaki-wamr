@@ -534,7 +534,7 @@ wasm_runtime_get_module_hash(wasm_module_t module);
  * Raise a chckpoint flag
  *
  */
-WASM_RUNTIME_API_EXTERN bool
+WASM_RUNTIME_API_EXTERN void
 wasm_runtime_checkpoint();
 
 /**

@@ -1577,8 +1577,9 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 #undef HANDLE_OPCODE
 #endif
 
+// TODO: signalは今度消す. 一応置いとく
 #if BH_PLATFORM_ESP_IDF != 1
-    signal(SIGINT, &wasm_interp_sigint);
+    // signal(SIGINT, &wasm_interp_sigint);
 #endif
     // Clear soft-dirty bit
 #if BH_PLATFORM_LINUX == 1
