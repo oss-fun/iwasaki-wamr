@@ -26,6 +26,12 @@
 static int app_argc;
 static char **app_argv;
 
+void
+wasm_interp_sigint(int signum)
+{
+    wasm_runtime_checkpoint();
+}
+
 /* clang-format off */
 static int
 print_help()

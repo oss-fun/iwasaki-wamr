@@ -1403,7 +1403,7 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 
 #define CHECK_DUMP()                                                        \
-    if (sig_flag) {                                                         \
+    if (wasm_get_checkpoint()) {                                                         \
         goto migration_async;                                               \
     }
 
@@ -1478,14 +1478,7 @@ static void clear_refs() {
     close(fd);
 }
 
-static bool sig_flag = false;
-static void (*native_handler)(void) = NULL;
 bool done_flag = false;
-void
-wasm_interp_sigint(int signum)
-{
-    sig_flag = true;
-}
 
 static void
 wasm_interp_call_func_bytecode(WASMModuleInstance *module,
@@ -1651,7 +1644,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         switch (opcode) {
 #else
 migration_async:
-    if (sig_flag) {
+    if (wasm_get_checkpoint()) {
         SYNC_ALL_TO_FRAME();
         uint8 *dummy_ip;
         uint32 *dummy_sp;

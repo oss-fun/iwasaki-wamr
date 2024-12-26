@@ -531,6 +531,13 @@ char *
 wasm_runtime_get_module_hash(wasm_module_t module);
 
 /**
+ * Raise a chckpoint flag
+ *
+ */
+WASM_RUNTIME_API_EXTERN bool
+wasm_runtime_checkpoint();
+
+/**
  * Set WASI parameters.
  *
  * While this API operates on a module, these parameters will be used

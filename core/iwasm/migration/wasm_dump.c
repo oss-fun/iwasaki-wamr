@@ -509,3 +509,20 @@ int wasm_dump(WASMExecEnv *exec_env,
     LOG_VERBOSE("Success to dump img for wamr\n");
     return 0;
 }
+
+static bool sig_flag = false;
+
+bool wasm_runtime_checkpoint() {
+    wasm_set_checkpoint(true);
+    return true;
+}
+
+inline 
+void wasm_set_checkpoint(bool f) {
+    sig_flag = f;
+}
+
+inline 
+bool wasm_get_checkpoint() {
+    return sig_flag;
+}
