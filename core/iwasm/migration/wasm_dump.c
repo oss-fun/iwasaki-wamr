@@ -311,7 +311,7 @@ int get_pagemap(unsigned long memory_addr) {
     unsigned long pfn = memory_addr / PAGE_SIZE;
     off_t offset = sizeof(uint64) * pfn;
     if (lseek(fd, offset, SEEK_SET) == -1) {
-        perror("Error seeking to pagemap entry");
+        // perror("Error seeking to pagemap entry");
         close(fd);
         return -1;
     }
@@ -349,7 +349,7 @@ int check_soft_dirty(int fd, uint8* addr) {
 
 int dump_dirty_memory(WASMMemoryInstance *memory) {
     const int PAGE_SIZE = 4096;
-    FILE *memory_fp = open_image("memory.img", "wb");
+    SGX_FILE *memory_fp = open_image("memory.img", "wb");
     uint64 pagemap_entry;
 
 #if BH_PLATFORM_LINUX == 1
@@ -379,7 +379,7 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
 #if BH_PLATFORM_LINUX == 1
     close(fd);
 #endif
-    fclose(memory_fp);
+    // fclose(memory_fp);
     sgx_fclose(memory_fp);
     return 0;
 }
@@ -527,9 +527,9 @@ int wasm_dump(WASMExecEnv *exec_env,
 
 static bool sig_flag = false;
 
-void wasm_runtime_checkpoint() {
-    wasm_set_checkpoint(true);
-}
+// void wasm_runtime_checkpoint() {
+//     wasm_set_checkpoint(true);
+// }
 
 inline 
 void wasm_set_checkpoint(bool f) {

@@ -20,6 +20,8 @@
 #include "sgx_urts.h"
 #include "pal_api.h"
 
+#include "wasm_export.h"
+
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -665,15 +667,15 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 }
 #endif
 
-void signal_handler(int signum)
+void signal_interp_sigint(int signum)
 {
-    printf("signal received!\n");
+    wasm_runtime_checkpoint();
 }
 
 int
 main(int argc, char *argv[])
 {
-    signal(SIGINT, signal_handler);
+    signal(SIGINT, &signal_interp_sigint);
     
     int32_t ret = -1;
     char *wasm_file = NULL;

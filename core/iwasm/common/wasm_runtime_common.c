@@ -10,6 +10,7 @@
 #include "wasm_native.h"
 #include "wasm_runtime_common.h"
 #include "wasm_memory.h"
+#include "wasm_dump.h"
 #if WASM_ENABLE_INTERP != 0
 #include "../interpreter/wasm_runtime.h"
 #endif
@@ -7388,4 +7389,8 @@ wasm_runtime_is_underlying_binary_freeable(WASMModuleCommon *const module)
 #endif /* WASM_ENABLE_AOT != 0 */
 
     return true;
+}
+
+void wasm_runtime_checkpoint() {
+    wasm_set_checkpoint(true);
 }

@@ -23,6 +23,8 @@ LIB_RATS_SRC ?= $(VMLIB_BUILD_DIR)/_deps/librats-build
 LIB_RATS_INSTALL_DIR := $(VMLIB_BUILD_DIR)/librats/lib/librats
 LIB_RATS_INCLUDE_DIR := $(VMLIB_BUILD_DIR)/librats/include
 
+WAMR_ROOT := $(CURDIR)/../../../../
+
 ifeq ($(shell getconf LONG_BIT), 32)
 	SGX_ARCH := x86
 else ifeq ($(findstring -m32, $(CXXFLAGS)), -m32)
@@ -62,7 +64,7 @@ else
 endif
 
 App_Cpp_Files := App/App.cpp
-App_Include_Paths := -IApp -I$(SGX_SDK)/include
+App_Include_Paths := -IApp -I$(SGX_SDK)/include -I$(WAMR_ROOT)/core/iwasm/migration -I$(WAMR_ROOT)/core/iwasm/include
 ifeq ($(WAMR_BUILD_LIB_RATS), 1)
 	App_Include_Paths += -I$(LIB_RATS_INCLUDE_DIR)
 endif
