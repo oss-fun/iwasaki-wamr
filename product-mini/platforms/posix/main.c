@@ -26,6 +26,12 @@
 static int app_argc;
 static char **app_argv;
 
+void
+wasm_interp_sigint(int signum)
+{
+    wasm_runtime_checkpoint();
+}
+
 /* clang-format off */
 static int
 print_help()
@@ -563,9 +569,13 @@ int
 main(int argc, char *argv[])
 {
     // リストアの初期化時間の計測(開始)
+    // TODO: debug buildのときだけ出力するようにする
     struct timespec ts1;
     clock_gettime(CLOCK_MONOTONIC, &ts1);
-    fprintf(stderr, "boot_start, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
+    // fprintf(stderr, "boot_start, %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
+
+    // signal handler for checkpoint
+    signal(SIGINT, &wasm_interp_sigint);
 
     int32 ret = -1;
     char *wasm_file = NULL;

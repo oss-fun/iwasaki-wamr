@@ -12,6 +12,7 @@
 #include "wasm_loader.h"
 #include "wasm_memory.h"
 #include "../common/wasm_exec_env.h"
+#include "../migration/wasm_migration.h"
 #include "../migration/wasm_dump.h"
 #include "../migration/wasm_restore.h"
 #if WASM_ENABLE_GC != 0
@@ -1401,9 +1402,26 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
 
 #define HANDLE_OP(opcode) HANDLE_##opcode:
 
+#define DO_CHECKPOINT()                                                     \
+    do {                                                                    \
+        SYNC_ALL_TO_FRAME();                                                \
+        uint8 *dummy_ip;                                                    \
+        uint32 *dummy_sp;                                                   \
+        dummy_ip = frame_ip;                                                \
+        dummy_sp = frame_sp;                                                \
+        int rc = wasm_dump(exec_env, module, memory,                        \
+            globals, global_data, global_addr, cur_func,                    \
+            frame, dummy_ip, dummy_sp, frame_csp,                           \
+            frame_ip_end, else_addr, end_addr, maddr, done_flag);           \
+        if (rc < 0) {                                                       \
+            LOG_DEBUG("Failed to checkpoint");                              \
+        }                                                                   \
+        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);                  \
+    } while(0)                                                              
+
 #define CHECK_DUMP()                                                        \
-    if (sig_flag) {                                                         \
-        goto migration_async;                                               \
+    if (wasm_get_checkpoint()) {                                            \
+        DO_CHECKPOINT();                                                    \
     }
 
 // #define FETCH_OPCODE_AND_DISPATCH() goto *handle_table[*frame_ip++]
@@ -1477,14 +1495,7 @@ static void clear_refs() {
     close(fd);
 }
 
-static bool sig_flag = false;
-static void (*native_handler)(void) = NULL;
 bool done_flag = false;
-void
-wasm_interp_sigint(int signum)
-{
-    sig_flag = true;
-}
 
 static void
 wasm_interp_call_func_bytecode(WASMModuleInstance *module,
@@ -1583,9 +1594,10 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
 #undef HANDLE_OPCODE
 #endif
 
-    // signal(SIGINT, &wasm_interp_sigint);
+#if BH_PLATFORM_LINUX == 1
     // Clear soft-dirty bit
     clear_refs();
+#endif
 
     // リストアの初期化時間の計測(終了)
     struct timespec ts1;
@@ -1595,7 +1607,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
     if (get_restore_flag()) {
         // bool done_flag;
         int rc;
-        struct timespec ts1, ts2;
+        struct timespec ts2;
 
         clock_gettime(CLOCK_MONOTONIC, &ts1);
         frame = wasm_restore_stack(&exec_env);
@@ -1618,7 +1630,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             return;
         }
 
-        uint8 *dummy_ip, *dummy_lp, *dummy_sp;
+        uint8 *dummy_ip;
+        uint32 *dummy_lp, *dummy_sp;
         rc = wasm_restore(&module, &exec_env, &cur_func, &prev_frame,
                         &memory, &globals, &global_data, &global_addr,
                         &frame, &dummy_ip, &dummy_lp, &dummy_sp, &frame_csp,
@@ -1644,23 +1657,6 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
         opcode = *frame_ip++;
         switch (opcode) {
 #else
-migration_async:
-    if (sig_flag) {
-        SYNC_ALL_TO_FRAME();
-        uint8 *dummy_ip, *dummy_sp;
-        dummy_ip = frame_ip;
-        dummy_sp = frame_sp;
-        int rc = wasm_dump(exec_env, module, memory, 
-            globals, global_data, global_addr, cur_func,
-            frame, dummy_ip, dummy_sp, frame_csp,
-            frame_ip_end, else_addr, end_addr, maddr, done_flag);
-        if (rc < 0) {
-            // perror("failed to dump\n");
-            // exit(1);
-        }
-        LOG_DEBUG("dispatch_count: %d\n", dispatch_count);
-        // exit(0);     
-    }
     FETCH_OPCODE_AND_DISPATCH();
 #endif
             /* control instructions */

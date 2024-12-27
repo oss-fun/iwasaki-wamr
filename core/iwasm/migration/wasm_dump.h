@@ -4,6 +4,9 @@
 #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
 
+void wasm_set_checkpoint(bool f);
+bool wasm_get_checkpoint();
+
 int wasm_dump(WASMExecEnv *exec_env,
          WASMModuleInstance *module,
          WASMMemoryInstance *memory,
@@ -22,6 +25,5 @@ int wasm_dump(WASMExecEnv *exec_env,
          uint8 *maddr,
          bool done_flag);
 
-int64_t get_time(struct timespec ts1, struct timespec ts2);
 
 #endif // _WASM_CHECKPOINT_H
