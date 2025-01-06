@@ -12,6 +12,7 @@
 #include "wasm_export.h"
 #include "bh_platform.h"
 
+
 #if WASM_ENABLE_LIB_RATS != 0
 #include <openssl/sha.h>
 #endif
@@ -696,6 +697,18 @@ handle_cmd_get_pro_prof_buf_data(uint64 *args, int32 argc)
     args_org[0] = bytes_dumped;
 }
 #endif
+
+
+
+void ecall_test_print(void){
+    enclave_print("Hello from enclave_print\n");
+    ocall_print("Hello from ocall_print\n");
+}
+
+void ecall_runtime_checkpoint(void){
+    wasm_runtime_checkpoint();
+    ocall_print("Checkpointed\n");
+}
 
 void
 ecall_handle_command(unsigned cmd, unsigned char *cmd_buf,

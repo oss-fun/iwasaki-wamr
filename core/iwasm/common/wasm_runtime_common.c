@@ -7394,3 +7394,4 @@ wasm_runtime_is_underlying_binary_freeable(WASMModuleCommon *const module)
 void wasm_runtime_checkpoint() {
     wasm_set_checkpoint(true);
 }
+

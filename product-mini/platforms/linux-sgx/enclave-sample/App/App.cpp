@@ -13,14 +13,13 @@
 #include <iostream>
 #include <cstdio>
 #include <cstring>
+#include <pthread.h>
 
 #include <signal.h>
 
 #include "Enclave_u.h"
 #include "sgx_urts.h"
 #include "pal_api.h"
-
-#include "wasm_export.h"
 
 #ifndef TRUE
 #define TRUE 1
@@ -45,9 +44,10 @@ pal_get_enclave_id(void)
 }
 
 void
-ocall_print(const char* str)
+ocall_print(const char *str)
 {
     printf("%s", str);
+    // std::cout << str << std::endl;
 }
 
 static char *
@@ -373,7 +373,7 @@ set_log_verbose_level(int log_verbose_level)
         if (SGX_SUCCESS
             != ecall_handle_command(g_eid, CMD_SET_LOG_LEVEL,
                                     (uint8_t *)ecall_args, sizeof(uint64_t))) {
-            printf("Call ecall_handle_command() failed.\n");
+            printf("Call ecall_handle_command() failed. set_log_verbose_level\n");
             return false;
         }
     }
@@ -389,7 +389,7 @@ init_runtime(uint32_t max_thread_num)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_INIT_RUNTIME, (uint8_t *)ecall_args,
                                 sizeof(ecall_args))) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. init_runtime\n");
         return false;
     }
     if (!(bool)ecall_args[0]) {
@@ -404,7 +404,7 @@ destroy_runtime()
 {
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_DESTROY_RUNTIME, NULL, 0)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. destroy_runtime\n");
     }
 }
 
@@ -421,7 +421,7 @@ load_module(uint8_t *wasm_file_buf, uint32_t wasm_file_size, char *error_buf,
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_LOAD_MODULE, (uint8_t *)ecall_args,
                                 sizeof(uint64_t) * 4)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. load_module\n");
         return NULL;
     }
 
@@ -437,7 +437,7 @@ unload_module(void *wasm_module)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_UNLOAD_MODULE, (uint8_t *)ecall_args,
                                 sizeof(uint64_t))) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. unload_module\n");
     }
 }
 
@@ -455,7 +455,7 @@ instantiate_module(void *wasm_module, uint32_t stack_size, uint32_t heap_size,
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_INSTANTIATE_MODULE,
                                 (uint8_t *)ecall_args, sizeof(uint64_t) * 5)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. instantiate_module\n");
         return NULL;
     }
 
@@ -471,7 +471,7 @@ deinstantiate_module(void *wasm_module_inst)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_DEINSTANTIATE_MODULE,
                                 (uint8_t *)ecall_args, sizeof(uint64_t))) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. deinstantiate_module\n");
     }
 }
 
@@ -486,7 +486,7 @@ get_exception(void *wasm_module_inst, char *exception, uint32_t exception_size)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_GET_EXCEPTION, (uint8_t *)ecall_args,
                                 sizeof(uint64_t) * 3)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. get_exeption\n");
     }
 
     return (bool)ecall_args[0];
@@ -517,7 +517,7 @@ app_instance_main(void *wasm_module_inst, int app_argc, char **app_argv)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_EXEC_APP_MAIN, (uint8_t *)ecall_args,
                                 size)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. app_instance_main\n");
     }
 
     if (get_exception(wasm_module_inst, exception, sizeof(exception))) {
@@ -555,7 +555,7 @@ app_instance_func(void *wasm_module_inst, const char *func_name, int app_argc,
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_EXEC_APP_FUNC, (uint8_t *)ecall_args,
                                 size)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. app_instance_func\n");
     }
 
     if (ecall_args != ecall_args_buf) {
@@ -586,7 +586,7 @@ set_wasi_args(void *wasm_module, const char **dir_list, uint32_t dir_list_size,
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_SET_WASI_ARGS, (uint8_t *)ecall_args,
                                 sizeof(uint64_t) * 12)) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. set_wasi_args\n");
     }
 
     return (bool)ecall_args[0];
@@ -600,7 +600,7 @@ get_version(uint64_t *major, uint64_t *minor, uint64_t *patch)
     if (SGX_SUCCESS
         != ecall_handle_command(g_eid, CMD_GET_VERSION, (uint8_t *)ecall_args,
                                 sizeof(ecall_args))) {
-        printf("Call ecall_handle_command() failed.\n");
+        printf("Call ecall_handle_command() failed. get_version\n");
         return;
     }
 
@@ -667,16 +667,63 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 }
 #endif
 
-void signal_interp_sigint(int signum)
+bool signal_requested = false;
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void
+signal_interp_sigint(int signum)
 {
-    wasm_runtime_checkpoint();
+    pthread_mutex_lock(&mutex);
+    signal_requested = true;
+    pthread_mutex_unlock(&mutex);
+    printf("Signal received\n");
+}
+
+void *
+thread_func(void *arg)
+{
+    while (1) {
+        pthread_mutex_lock(&mutex);
+        if (signal_requested) {
+            pthread_mutex_unlock(&mutex);
+            ecall_test_print(g_eid);
+            ecall_runtime_checkpoint(g_eid);
+            printf("Signal requested\n");
+            pthread_exit(NULL);
+        }
+        pthread_mutex_unlock(&mutex);
+    }
+    return NULL;
 }
 
 int
 main(int argc, char *argv[])
 {
+
     signal(SIGINT, &signal_interp_sigint);
-    
+
+    pthread_t thread;
+    // if (signal_requested) {
+
+    int r = pthread_create(&thread, NULL, thread_func, NULL);
+
+    if (r != 0)
+        perror("new thread");
+    // }
+
+    // struct sigaction sa;
+
+    // sa.sa_handler = signal_interp_sigint;
+    // sa.sa_flags = 0;
+    // sigemptyset(&sa.sa_mask);
+
+    // if (sigaction(SIGINT, &sa, NULL) == -1) {
+    //     perror("sigaction");
+    //     return 1;
+    // }
+
+    /////////////////////////////////////////
+
     int32_t ret = -1;
     char *wasm_file = NULL;
     const char *func_name = NULL;
@@ -703,6 +750,14 @@ main(int argc, char *argv[])
         std::cout << "Fail to initialize enclave." << std::endl;
         return 1;
     }
+    // else{
+    //     if (SGX_SUCCESS
+    //     != ecall_test_print(g_eid)) {
+    //     printf("Call ecall_test_print() failed.\n");
+    // }else{
+    //     printf("Call ecall_test_print() success.\n");
+    // }
+    // }
 
 #if TEST_OCALL_API != 0
     {
@@ -865,12 +920,26 @@ main(int argc, char *argv[])
     else
         app_instance_main(wasm_module_inst, argc, argv);
 
+        // if(signal_requested){
+        //     printf("Signal requested\n");
+        //     ecall_test_print(g_eid);
+        //     ecall_runtime_checkpoint(g_eid);
+        // }
+
+        // signal_interp_sigint(2);
+        // ecall_test_print(g_eid);
+
 #if WASM_ENABLE_STATIC_PGO != 0
     if (gen_prof_file)
         dump_pgo_prof_data(wasm_module_inst, gen_prof_file);
 #endif
 
     ret = 0;
+
+    // if (signal_requested) {
+    pthread_join(thread, NULL);
+    
+    // }
 
     /* Deinstantiate module */
     deinstantiate_module(wasm_module_inst);
