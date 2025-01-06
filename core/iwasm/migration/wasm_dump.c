@@ -269,7 +269,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         if (frame->function == NULL) break;
 
         ++i;
-        snprintf(file, "stack%d.img", i);
+        snprintf(file, sizeof(file),"stack%d.img", i);
         SGX_FILE *fp = open_image(file, "wb");
 
         uint32 entry_fidx = frame->function - module->e->functions;
