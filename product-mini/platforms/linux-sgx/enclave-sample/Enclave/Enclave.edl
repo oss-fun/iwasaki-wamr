@@ -27,6 +27,7 @@ enclave {
                                      uint32_t wasm_file_size);
         public void ecall_test_print();
         public void ecall_runtime_checkpoint();
+        public void ecall_set_restore_flag();
     };
 
     untrusted {

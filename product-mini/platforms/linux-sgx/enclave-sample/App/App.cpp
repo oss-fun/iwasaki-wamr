@@ -859,6 +859,9 @@ main(int argc, char *argv[])
             gen_prof_file = argv[0] + 16;
         }
 #endif
+        else if (!strncmp(argv[0], "--restore", 9)){
+            ecall_set_restore_flag(g_eid);
+        }
         else if (!strncmp(argv[0], "--version", 9)) {
             uint64_t major = 0, minor = 0, patch = 0;
             get_version(&major, &minor, &patch);

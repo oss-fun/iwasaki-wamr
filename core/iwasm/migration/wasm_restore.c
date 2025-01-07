@@ -7,7 +7,7 @@
 #include "wasm_migration.h"
 #include "wasm_restore.h"
 
-#include "/opt/intel/sgxsdk/include/sgx_tprotected_fs.h"
+#include "sgx_tprotected_fs.h"
 
 
 static bool restore_flag;

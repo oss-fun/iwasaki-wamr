@@ -12,7 +12,6 @@
 #include "wasm_export.h"
 #include "bh_platform.h"
 
-
 #if WASM_ENABLE_LIB_RATS != 0
 #include <openssl/sha.h>
 #endif
@@ -23,10 +22,10 @@ extern void
 os_set_print_function(os_print_function_t pf);
 
 void
-    enclave_print(const char *message)
-    {
-        ocall_print(message);
-    }
+enclave_print(const char *message)
+{
+    ocall_print(message);
+}
 
 // int
 // enclave_print(const char *message)
@@ -101,6 +100,21 @@ set_error_buf(char *error_buf, uint32 error_buf_size, const char *string)
 
 static bool runtime_inited = false;
 
+bool restore_flag = false;
+
+void
+ecall_set_restore_flag(void)
+{
+    restore_flag = true;
+
+    if (restore_flag) {
+        enclave_print("Restore flag true\n");
+    }
+    else {
+        enclave_print("Restore flag false\n");
+    }
+}
+
 static void
 handle_cmd_init_runtime(uint64 *args, uint32 argc)
 {
@@ -129,6 +143,17 @@ handle_cmd_init_runtime(uint64 *args, uint32 argc)
 #else
     init_args.mem_alloc_type = Alloc_With_System_Allocator;
 #endif
+
+    if (restore_flag) {
+        init_args.restore_flag = true;
+        enclave_print("init_args.restore_flag true\n");
+    }
+    else {
+        enclave_print("init_args.restore_flag false\n");
+    }
+
+
+    
 
     /* initialize runtime environment */
     if (!wasm_runtime_full_init(&init_args)) {
@@ -698,14 +723,16 @@ handle_cmd_get_pro_prof_buf_data(uint64 *args, int32 argc)
 }
 #endif
 
-
-
-void ecall_test_print(void){
+void
+ecall_test_print(void)
+{
     enclave_print("Hello from enclave_print\n");
     ocall_print("Hello from ocall_print\n");
 }
 
-void ecall_runtime_checkpoint(void){
+void
+ecall_runtime_checkpoint(void)
+{
     wasm_runtime_checkpoint();
     ocall_print("Checkpointed\n");
 }
@@ -773,6 +800,8 @@ ecall_handle_command(unsigned cmd, unsigned char *cmd_buf,
             break;
     }
 }
+
+
 
 void
 ecall_iwasm_main(uint8_t *wasm_file_buf, uint32_t wasm_file_size)
