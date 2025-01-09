@@ -149,7 +149,7 @@ wasm_restore_stack(WASMExecEnv **_exec_env)
     char file[32];
     uint32 fidx = 0;
     for (uint32 i = frame_stack_size; i > 0; --i) {
-        snprintf(file, "stack%d.img", i);
+        snprintf(file, sizeof(file), "stack%d.img", i);
         fp = open_image(file, "rb");
 
         sgx_fread(&fidx, sizeof(uint32), 1, fp);

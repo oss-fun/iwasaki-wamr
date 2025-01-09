@@ -282,7 +282,23 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");
     sgx_fwrite(&i, sizeof(uint32), 1, fp);
+    
+
+    sgx_key_128bit_t key;
+    
+
+
+    // SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
+    int32_t result = sgx_fexport_auto_key(fp, &key);
+    // sgx_fwrite(&key, sizeof(sgx_key_128bit_t), 1, fp2);
     sgx_fclose(fp);
+
+    SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
+    sgx_fwrite(&key, sizeof(sgx_key_128bit_t), 1, fp2);
+    sgx_ferror(fp2);
+    sgx_fclose(fp2);
+
+
 
     return 0;
 }
