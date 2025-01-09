@@ -21,6 +21,7 @@
 #include "sgx_urts.h"
 #include "pal_api.h"
 
+
 #ifndef TRUE
 #define TRUE 1
 #endif
@@ -667,60 +668,51 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 }
 #endif
 
-bool signal_requested = false;
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+
+void *thread_func(void *arg){
+    ecall_runtime_checkpoint(g_eid);
+    pthread_exit(NULL);
+}
 
 void
 signal_interp_sigint(int signum)
 {
-    pthread_mutex_lock(&mutex);
-    signal_requested = true;
-    pthread_mutex_unlock(&mutex);
-    printf("Signal received\n");
-}
+    pthread_t thread;
 
-void *
-thread_func(void *arg)
-{
-    while (1) {
-        pthread_mutex_lock(&mutex);
-        if (signal_requested) {
-            pthread_mutex_unlock(&mutex);
-            ecall_test_print(g_eid);
-            ecall_runtime_checkpoint(g_eid);
-            printf("Signal requested\n");
-            pthread_exit(NULL);
-        }
-        pthread_mutex_unlock(&mutex);
-    }
-    return NULL;
+    int r = pthread_create(&thread, NULL, thread_func, NULL);
+
+    if (r != 0)
+        perror("new thread");
+
+    pthread_join(thread, NULL);
 }
 
 int
 main(int argc, char *argv[])
 {
 
-    signal(SIGINT, &signal_interp_sigint);
+    // signal(SIGINT, &signal_interp_sigint);
 
-    pthread_t thread;
+    // pthread_t thread;
     // if (signal_requested) {
 
-    int r = pthread_create(&thread, NULL, thread_func, NULL);
+    // int r = pthread_create(&thread, NULL, thread_func, NULL);
 
-    if (r != 0)
-        perror("new thread");
+    // if (r != 0)
+    //     perror("new thread");
     // }
 
-    // struct sigaction sa;
+    struct sigaction sa;
 
-    // sa.sa_handler = signal_interp_sigint;
-    // sa.sa_flags = 0;
-    // sigemptyset(&sa.sa_mask);
+    sa.sa_handler = signal_interp_sigint;
+    sa.sa_flags = 0;
+    sigemptyset(&sa.sa_mask);
 
-    // if (sigaction(SIGINT, &sa, NULL) == -1) {
-    //     perror("sigaction");
-    //     return 1;
-    // }
+    if (sigaction(SIGINT, &sa, NULL) == -1) {
+        perror("sigaction");
+        return 1;
+    }
 
     /////////////////////////////////////////
 
@@ -938,11 +930,6 @@ main(int argc, char *argv[])
 #endif
 
     ret = 0;
-
-    // if (signal_requested) {
-    pthread_join(thread, NULL);
-    
-    // }
 
     /* Deinstantiate module */
     deinstantiate_module(wasm_module_inst);

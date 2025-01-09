@@ -7,6 +7,7 @@
 #include "wasm_dump.h"
 #include "wasm_dispatch.h"
 
+
 #define BH_PLATFORM_LINUX 0
 
 // #define skip_leb(p) while (*p++ & 0x80)
@@ -34,6 +35,7 @@ int dump_value(void *ptr, size_t size, size_t nmemb, SGX_FILE *stream) {
 int debug_memories(WASMModuleInstance *module) {
     // printf("=== debug memories ===\n");
     // printf("memory_count: %d\n", module->memory_count);
+    
     
     // // bytes_per_page
     // for (int i = 0; i < module->memory_count; i++) {
@@ -400,6 +402,7 @@ int dump_dirty_memory(WASMMemoryInstance *memory) {
     return 0;
 }
 
+
 int wasm_dump_memory(WASMMemoryInstance *memory) {
     SGX_FILE *mem_size_fp = open_image("mem_page_count.img", "wb");
 
@@ -407,6 +410,8 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
 
 
     // printf("page_count: %d\n", memory->cur_page_count);
+    
+  
     sgx_fwrite(&(memory->cur_page_count), sizeof(uint32), 1, mem_size_fp);
 
     sgx_fclose(mem_size_fp);
