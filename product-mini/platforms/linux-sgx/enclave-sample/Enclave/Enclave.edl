@@ -33,5 +33,11 @@ enclave {
     untrusted {
         /* define OCALLs here. */
         void ocall_print([in, string]const char* str);
+        void ocall_fprintf_int([in, string]const char* str, int64_t val);
+        void ocall_fprintf_str([in, string]const char* str1, [in, string]const char* str2);
+        void ocall_exit(int8_t status_num);
+        void ocall_perror([in, string]const char* str);
+        unsigned char* ocall_read_binaryfile([in, string]const char *filename);
+        void ocall_print_key([in, count=16] const uint8_t *key);
     };
 };

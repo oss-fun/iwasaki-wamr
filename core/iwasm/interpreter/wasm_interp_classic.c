@@ -1415,8 +1415,10 @@ wasm_interp_call_func_import(WASMModuleInstance *module_inst,
             frame_ip_end, else_addr, end_addr, maddr, done_flag);           \
         if (rc < 0) {                                                       \
             LOG_DEBUG("Failed to checkpoint");                              \
+            ocall_exit(1);                                                  \                             
         }                                                                   \
         LOG_DEBUG("dispatch_count: %d\n", dispatch_count);                  \
+        ocall_exit(0);                                                      \
     } while(0)                                                              
 
 #define CHECK_DUMP()                                                        \

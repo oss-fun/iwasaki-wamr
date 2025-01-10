@@ -51,6 +51,62 @@ ocall_print(const char *str)
     // std::cout << str << std::endl;
 }
 
+void ocall_fprintf_int(const char *str, int64_t val){
+    fprintf(stderr, "%s %lu\n", str, val);
+}
+
+void ocall_fprintf_str(const char *str1, const char *str2){
+    fprintf(stderr, "%s %s\n", str1, str2);
+}
+
+void ocall_exit(int8_t status_num){
+    exit(status_num);
+}
+
+void ocall_perror(const char *str){
+    perror(str);
+}
+
+unsigned char* ocall_read_binaryfile(const char *filename){
+    // ファイルをバイナリモードで開く
+    FILE *file = fopen(filename, "rb");
+
+    // ファイルサイズを取得
+    fseek(file, 0, SEEK_END);
+    long fileSize = ftell(file);
+    fseek(file, 0, SEEK_SET);
+
+    // ファイルサイズのメモリを確保
+    unsigned char *buffer = (unsigned char*)malloc(fileSize);
+
+
+    // ファイルの内容を読み込む
+    size_t bytesRead = fread(buffer, 1, fileSize, file);
+
+    FILE *file2 = fopen("test_binary", "wb");
+    fwrite(buffer, fileSize, 1, file2);
+    fclose(file2);
+
+    // ファイルを閉じる
+    fclose(file);
+    return buffer;
+}
+
+void ocall_print_key(const uint8_t *key) {
+    printf("Key: ");
+    for (size_t i = 0; i < 16; i++) {
+        printf("%02X ", key[i]);
+    }
+    printf("\n");
+}
+
+    
+
+
+
+
+
+
 static char *
 get_exe_path(char *path_buf, unsigned path_buf_size)
 {
