@@ -93,11 +93,21 @@ unsigned char* ocall_read_binaryfile(const char *filename){
 }
 
 void ocall_print_key(const uint8_t *key) {
-    printf("Key: ");
-    for (size_t i = 0; i < 16; i++) {
-        printf("%02X ", key[i]);
+    printf("key: ");
+    for (int i = 0; i < 16; i++) {
+        printf("%02x", key[i]);
     }
     printf("\n");
+}
+
+void ocall_save_key(const uint8_t *key) {
+    FILE *file = fopen("key", "w");
+    fwrite(key, sizeof(uint8_t), 16, file);
+    fclose(file);
+}
+
+void ocall_print_ssize_t(ssize_t val) {
+    printf("val ssize_t: %ld\n", val);
 }
 
     

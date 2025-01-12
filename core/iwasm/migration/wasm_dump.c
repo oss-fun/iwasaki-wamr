@@ -114,12 +114,14 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 // TODO: コードごちゃごちゃで読めないので、整理する
 uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool is_return_address) {
     
-
-    // unsigned char *ta = ocall_read_binaryfile("tablemap_func");    
-    // SGX_FILE *tablemap_func = open_image("tablemap_func_sgx", "rwb");
+    
+    SGX_FILE *tablemap_func = open_image("tablemap_func_sgx", "rwb");
     // sgx_fwrite(&ta, sizeof(ta), 1, tablemap_func);
 
-    SGX_FILE *tablemap_func = open_image("tablemap_func", "rb");
+    // SGX_FILE *tablemap_func = open_image("tablemap_func", "rb");
+    open_type_stack("tablemap_func", "wb+");
+
+
     // if (!tablemap_func) ocall_print("not found tablemap_func\n");
     SGX_FILE *tablemap_offset = open_image("tablemap_offset", "rb");
     // if (!tablemap_offset) ocall_print("not found tablemap_offset\n");
@@ -300,17 +302,33 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");
-    sgx_fwrite(&i, sizeof(uint32), 1, fp);
-    
 
-    sgx_key_128bit_t key;
+    sgx_key_128bit_t key = {0};
 
     // SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
-    // int32_t result = sgx_fexport_auto_key(fp, &key);
-    // sgx_fwrite(&key, sizeof(sgx_key_128bit_t), 1, fp2);
+
     sgx_fclose(fp);
 
-    sgx_fexport_auto_key("test_fexport", NULL);
+    // SGX_FILE *fp2 = open_image("frame_key.dat", "w");
+    // sgx_fclose(fp2);
+
+    errno = 0;
+    int32_t result = sgx_fexport_auto_key("frame.img", &key);
+
+    ocall_print_key(&key);
+    ocall_save_key(&key);
+
+    // if(result != 0) {
+    //     ocall_fprintf_int("failed to export key: ", result);
+    //     ocall_fprintf_int("errno: ", errno);
+    // }else {
+    //     ocall_fprintf_str("key exported", "");
+    // }
+
+
+
+
+    // sgx_fexport_auto_key("test_fexport", NULL);
 
     // ocall_print_key(key);
     // ocall_print("key printed\n");
