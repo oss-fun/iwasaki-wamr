@@ -74,7 +74,7 @@ static SGX_FILE* open_type_stack(const char* file, const char* flag) {
 
     // ソースファイルからデスティネーションファイルへデータをコピー
     while ((bytesRead = read(src_fd, buffer, 4096)) > 0) {
-        ocall_fprintf_int("", buffer)
+        ocall_fprintf_int("", buffer);
         bytesWritten = sgx_fwrite(buffer, bytesRead, 1, fp);
         // bytesWritten = write(dest_fd, buffer, bytesRead);
         if (bytesWritten != bytesRead) {

@@ -100,12 +100,6 @@ void ocall_print_key(const uint8_t *key) {
     printf("\n");
 }
 
-void ocall_save_key(const uint8_t *key) {
-    FILE *file = fopen("key", "w");
-    fwrite(key, sizeof(uint8_t), 16, file);
-    fclose(file);
-}
-
 void ocall_print_ssize_t(ssize_t val) {
     printf("val ssize_t: %ld\n", val);
 }

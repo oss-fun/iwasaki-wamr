@@ -316,7 +316,6 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     int32_t result = sgx_fexport_auto_key("frame.img", &key);
 
     ocall_print_key(&key);
-    ocall_save_key(&key);
 
     // if(result != 0) {
     //     ocall_fprintf_int("failed to export key: ", result);
