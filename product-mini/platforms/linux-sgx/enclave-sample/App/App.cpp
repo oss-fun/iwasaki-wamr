@@ -850,9 +850,46 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 }
 #endif
 
+int convert_file_to_sgxfile(const char* input, const char* output){
+    FILE *ifp = NULL;
+    FILE *ofp = NULL;
 
+    if((ifp = fopen(input, "rb")) == NULL){
+        printf("Failed to open file: %s\n", input);
+        return -1;
+    }
+
+    char file[32];
+    sprintf(file, "reverse_%s", input);
+
+    if((ofp = fopen(file, "wb")) == NULL)
+    {
+        printf("Failed to open file: %s\n", output);
+        return -1;
+    }
+
+    fseek(ifp, 0, SEEK_END);
+    long fsize = ftell(ifp);
+    fseek(ifp, 0, SEEK_SET);
+    unsigned char *message = (unsigned char *)malloc(fsize + 1);
+    size_t readRes = fread(message, fsize, 1, ifp);
+    size_t encMessageLen = ( fsize); 
+    unsigned char *encMessage = (unsigned char *)malloc((encMessageLen+1)*sizeof(unsigned char));
+
+    ecall_convert_file_to_sgxfile(g_eid, message, fsize, encMessage, encMessageLen, output);
+
+    fwrite(encMessage, 1, encMessageLen, ofp);
+
+    fclose(ifp);
+    fclose(ofp);
+    return 0;
+}
 
 void *thread_func(void *arg){
+    convert_file_to_sgxfile("tablemap_func", "sgx_tablemap_func");
+    convert_file_to_sgxfile("tablemap_offset", "sgx_tablemap_offset");
+    convert_file_to_sgxfile("type_table", "sgx_type_table");    
+    
     ecall_runtime_checkpoint(g_eid);
     pthread_exit(NULL);
 }

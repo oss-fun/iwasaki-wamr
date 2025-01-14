@@ -12,6 +12,9 @@
 #include "wasm_export.h"
 #include "bh_platform.h"
 
+#include "/opt/intel/sgxsdk/include/sgx_tprotected_fs.h"
+
+
 #if WASM_ENABLE_LIB_RATS != 0
 #include <openssl/sha.h>
 #endif
@@ -870,4 +873,27 @@ fail2:
 fail1:
     /* destroy runtime environment */
     wasm_runtime_destroy();
+}
+
+static sgx_key_128bit_t key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf };
+
+void ecall_convert_file_to_sgxfile(unsigned char *decMessageIn, size_t len, unsigned char *encMessageOut, size_t lenOut, const char *output){
+    
+    
+    SGX_FILE *fp = sgx_fopen(output, "wb", &key);
+    if (fp == NULL) {
+        enclave_print("Failed to open file fp1\n");
+        return;
+    }
+    sgx_fwrite(decMessageIn, 1, len, fp);
+    sgx_fclose(fp);
+
+    SGX_FILE *fp2 = sgx_fopen("sgx_tablemap_func", "rb", &key);
+    if (fp2 == NULL) {
+        enclave_print("Failed to open file fp2\n");
+        return;
+    }
+
+    sgx_fread(encMessageOut, lenOut, 1, fp2);
+
 }

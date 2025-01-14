@@ -28,6 +28,7 @@ enclave {
         public void ecall_test_print();
         public void ecall_runtime_checkpoint();
         public void ecall_set_restore_flag();
+        public void ecall_convert_file_to_sgxfile([in,size=len] unsigned char *decMessageIn, size_t len, [out,size=lenOut] unsigned char *encMessageOut, size_t lenOut,  [in,string]const char *output);
     };
 
     untrusted {
