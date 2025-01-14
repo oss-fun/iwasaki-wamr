@@ -4,6 +4,7 @@
 
 // #include "../common/wasm_exec_env.h"
 #include "../interpreter/wasm_interp.h"
+
 #include "/opt/intel/sgxsdk/include/sgx_tprotected_fs.h"
 #include "sgx_tprotected_fs.h"
 
@@ -44,74 +45,43 @@ static SGX_FILE* open_image(const char* file, const char* flag) {
     // SGX_FILE *fp = sgx_fopen(file, flag, &key);
 
     if (fp == NULL) {
-        ocall_fprintf_str("failed to open", file);
-        ocall_fprintf_int("errno migration l48", errno);
+        ocall_fprintf_str("open_image, failed to open", file);
+        // ocall_printf_int("errno migration l48", errno);
         return NULL;
     }
     return fp;
 }
 
-static SGX_FILE* open_type_stack(const char* file, const char* flag) {
+
+static void convert_binary_to_sgx_file(const char* file_name, const char* sgx_file_name) {
+    uint8_t *file_buf;
+    uint32_t file_size;
+
+    ocall_get_file_size(file_name, &file_size);
 
 
-    int src_fd;
-    ssize_t bytesRead, bytesWritten;
-    ssize_t buffer[4096];
-
-    // ソースファイルを読み取り専用で開く
-    src_fd = open(file, O_RDONLY);
-    if (src_fd < 0) {
-        ocall_print("failed to open file\n");
+    ocall_printf_size("file_size", file_size);
+   
+    file_buf = (uint8_t *)malloc(sizeof(uint8_t) * file_size);
+    if(file_buf == NULL) {
+        ocall_fprintf_str("convert_binary_to_sgx_file, failed to allocate memory", "");
+        return;
     }
 
-    SGX_FILE *fp = sgx_fopen_auto_key("copy_file", flag);
+    ocall_print("-----------\n");
 
-    // // デスティネーションファイルを書き込み専用で開く（存在しない場合は作成）
-    // dest_fd = open("copy", O_WRONLY | O_CREAT | O_TRUNC);
-    // if (dest_fd == -1) {
-    //     close(src_fd);
-    // }
+    ocall_read_file_to_buffer(file_name, file_size, file_buf);
 
-    // ソースファイルからデスティネーションファイルへデータをコピー
-    while ((bytesRead = read(src_fd, buffer, 4096)) > 0) {
-        ocall_fprintf_int("", buffer);
-        bytesWritten = sgx_fwrite(buffer, bytesRead, 1, fp);
-        // bytesWritten = write(dest_fd, buffer, bytesRead);
-        if (bytesWritten != bytesRead) {
-            // perror("Failed to write to destination file");
-            // close(src_fd);
-            // exit(EXIT_FAILURE);
-            ocall_print("failed to write\n");
-        }
-    }
 
-    close(src_fd);
+    // ocall_write_buffer_to_file(sgx_file_name, file_buf, file_size);
+
+
+    SGX_FILE *fp = sgx_fopen_auto_key(sgx_file_name, "wb");
+    sgx_fwrite(file_buf, file_size, 1, fp);
     sgx_fclose(fp);
 
-    // int fd = open(file, O_RDONLY);
-    // if (fd < 0){
-    //     ocall_print("\nfd open failed\n");
-    // }
 
-    // int size_r;
-    // size_t buf[1024];
 
-    // while(1){
-    //     size_r = read(fd, buf, sizeof(buf));
-    //     if (size_r == 0){
-    //         break;
-    //     }else if (size_r < 0){
-    //         ocall_print("read failed\n");
-    //         break;
-    //     }
-    // }
-
-    // ocall_print("buf: ");
-    // ocall_fprintf_int("bufsize: ", sizeof(buf));
-    // ocall_print("\n");
-    // close(fd);
-
-    return fp;
 }
  
 

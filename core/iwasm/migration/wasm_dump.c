@@ -54,8 +54,8 @@ int debug_memories(WASMModuleInstance *module) {
 }
 
 // 積まれてるframe stackを出力する
-void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
-    WASMModuleInstance *module = exec_env->module_inst;
+// void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
+//     WASMModuleInstance *module = exec_env->module_inst;
 
     // int cnt = 0;
     // printf("=== DEBUG Frame Stack ===\n");
@@ -69,7 +69,7 @@ void debug_frame_info(WASMExecEnv* exec_env, WASMInterpFrame *frame) {
     //     }
     // } while (frame = frame->prev_frame);
     // printf("=== DEBUG Frame Stack ===\n");
-}
+// }
 
 // // func_instの先頭からlimitまでのopcodeを出力する
 // int debug_function_opcodes(WASMModuleInstance *module, WASMFunctionInstance* func, uint32 limit) {
@@ -115,18 +115,21 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool is_return_address) {
     
     
-    SGX_FILE *tablemap_func = open_image("tablemap_func_sgx", "rwb");
+    // SGX_FILE *tablemap_func = open_image("tablemap_func_sgx", "rb+");
     // sgx_fwrite(&ta, sizeof(ta), 1, tablemap_func);
 
-    // SGX_FILE *tablemap_func = open_image("tablemap_func", "rb");
-    open_type_stack("tablemap_func", "wb+");
-
-
+    
+    convert_binary_to_sgx_file("tablemap_func", "sgx_tablemap_func");
+    SGX_FILE *tablemap_func = open_image("sgx_tablemap_func", "rb");
     // if (!tablemap_func) ocall_print("not found tablemap_func\n");
+
+    // convert_binary_to_sgx_file("tablemap_offset", "sgx_tablemap_offset");
     SGX_FILE *tablemap_offset = open_image("tablemap_offset", "rb");
-    // if (!tablemap_offset) ocall_print("not found tablemap_offset\n");
+    // // if (!tablemap_offset) ocall_print("not found tablemap_offset\n");
+
+    // convert_binary_to_sgx_file("type_table", "sgx_type_table");
     SGX_FILE *type_table = open_image("type_table", "rb");
-    // if (!type_table) ocall_print("not found type_table\n");
+    // // if (!type_table) ocall_print("not found type_table\n");
     
     // tablemap_func
     sgx_fseek(tablemap_func, fidx*sizeof(uint32)*3, SEEK_SET);
@@ -137,7 +140,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
         // perror("tablemap_funcがおかしい\n");
         // exit(1);
 
-        // ocall_perror("dump.c 129\n");
+        ocall_print("tablemap_func error\n");
         // ocall_exit(1);
     }
     sgx_fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
@@ -162,7 +165,6 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
         // perror("tablemap_offsetがおかしい\n");
         // exit(1);
 
-        // ocall_perror("dump.c 152\n");
         // ocall_exit(1);
     }
     // type_table_addr = pre_type_table_addr;
@@ -298,7 +300,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         sgx_fclose(fp);
     } while(frame = frame->prev_frame);
 
-    ocall_fprintf_int("stack_count: ", i);
+    ocall_printf_int("stack_count: ", i);
 
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");
@@ -318,8 +320,8 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
     ocall_print_key(&key);
 
     // if(result != 0) {
-    //     ocall_fprintf_int("failed to export key: ", result);
-    //     ocall_fprintf_int("errno: ", errno);
+    //     ocall_printf_int("failed to export key: ", result);
+    //     ocall_printf_int("errno: ", errno);
     // }else {
     //     ocall_fprintf_str("key exported", "");
     // }
@@ -544,7 +546,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_memory(memory);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
-    // ocall_fprintf_int("memory:", get_time(ts1, ts2));
+    // ocall_printf_int("memory:", get_time(ts1, ts2));
 
     if (rc < 0) {
         LOG_ERROR("Failed to dump linear memory\n");
