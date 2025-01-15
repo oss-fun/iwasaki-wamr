@@ -312,20 +312,21 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
 
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");
+    sgx_fwrite(&i, sizeof(uint32), 1, fp);
+    sgx_fclose(fp);
 
-    sgx_key_128bit_t key = {0};
 
     // SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
 
-    sgx_fclose(fp);
+   
 
     // SGX_FILE *fp2 = open_image("frame_key.dat", "w");
     // sgx_fclose(fp2);
 
-    errno = 0;
-    int32_t result = sgx_fexport_auto_key("frame.img", &key);
+    // errno = 0;
+    // int32_t result = sgx_fexport_auto_key("frame.img", &key);
 
-    ocall_print_key(&key);
+    // ocall_print_key(&key);
 
     // if(result != 0) {
     //     ocall_printf_int("failed to export key: ", result);
@@ -475,7 +476,7 @@ int wasm_dump_memory(WASMMemoryInstance *memory) {
 int wasm_dump_global(WASMModuleInstance *module, WASMGlobalInstance *globals, uint8* global_data) {
     SGX_FILE *fp;
     const char *file = "global.img";
-    fp = sgx_fopen_auto_key(file, "wb");
+    fp = open_image(file, "wb");
     if (fp == NULL) {
         // fprintf(stderr, "failed to open %s\n", file);
         return -1;
@@ -513,7 +514,7 @@ int wasm_dump_program_counter(
 {
     SGX_FILE *fp;
     const char *file = "program_counter.img";
-    fp = sgx_fopen_auto_key(file, "wb");
+    fp = open_image(file, "wb");
     if (fp == NULL) {
         // fprintf(stderr, "failed to open %s\n", file);
         return -1;
@@ -525,6 +526,8 @@ int wasm_dump_program_counter(
 
     dump_value(&fidx, sizeof(uint32), 1, fp);
     dump_value(&p_offset, sizeof(uint32), 1, fp);
+
+    sgx_fclose(fp);
 
     return 0;
 }

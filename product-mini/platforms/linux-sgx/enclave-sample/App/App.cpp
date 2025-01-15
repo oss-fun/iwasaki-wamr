@@ -702,9 +702,12 @@ app_instance_main(void *wasm_module_inst, int app_argc, char **app_argv)
                                 size)) {
         printf("Call ecall_handle_command() failed. app_instance_main\n");
     }
+    else{
+        printf("Call ecall_handle_command() success. app_instance_main\n");
+    }
 
     if (get_exception(wasm_module_inst, exception, sizeof(exception))) {
-        printf("%s\n", exception);
+        printf("exception: %s\n", exception);
     }
 
     if (ecall_args != ecall_args_buf) {
@@ -852,35 +855,66 @@ dump_pgo_prof_data(void *module_inst, const char *path)
 
 int convert_file_to_sgxfile(const char* input, const char* output){
     FILE *ifp = NULL;
-    FILE *ofp = NULL;
+    // FILE *ofp = NULL;
 
     if((ifp = fopen(input, "rb")) == NULL){
         printf("Failed to open file: %s\n", input);
         return -1;
     }
 
-    char file[32];
-    sprintf(file, "reverse_%s", input);
+    // char file[32];
+    // sprintf(file, "reverse_%s", input);
 
-    if((ofp = fopen(file, "wb")) == NULL)
-    {
-        printf("Failed to open file: %s\n", output);
-        return -1;
-    }
+   
 
     fseek(ifp, 0, SEEK_END);
     long fsize = ftell(ifp);
     fseek(ifp, 0, SEEK_SET);
-    unsigned char *message = (unsigned char *)malloc(fsize + 1);
-    size_t readRes = fread(message, fsize, 1, ifp);
-    size_t encMessageLen = ( fsize); 
-    unsigned char *encMessage = (unsigned char *)malloc((encMessageLen+1)*sizeof(unsigned char));
 
-    ecall_convert_file_to_sgxfile(g_eid, message, fsize, encMessage, encMessageLen, output);
+    unsigned char *buffer = (unsigned char *)malloc(fsize + 1);
+    size_t readRes = fread(buffer, fsize, 1, ifp);
+    // size_t encMessageLen = ( fsize); 
+    // unsigned char *encMessage = (unsigned char *)malloc((encMessageLen+1)*sizeof(unsigned char));
 
-    fwrite(encMessage, 1, encMessageLen, ofp);
+    // ecall_test_print(g_eid);
+
+    ecall_convert_file_to_sgxfile(g_eid, buffer, fsize, output);
+
+
+    // if((ofp = fopen(file, "wb")) == NULL)
+    // {
+    //     printf("Failed to open file: %s\n", output);
+    //     return -1;
+    // }
+
+    // fwrite(encMessage, 1, encMessageLen, ofp);
 
     fclose(ifp);
+    // fclose(ofp);
+    return 0;
+}
+
+int convert_sgxfile_to_file(const char* input, const char* output){
+    FILE *ofp = NULL;
+    if((ofp = fopen(output, "wb")) == NULL)
+    {
+        printf("s2f,Failed to open file: %s\n", output);
+        return -1;
+    }
+
+    size_t fsize = 0;
+
+    // ecall_test_print(g_eid);
+
+    ecall_get_sgxfile_size(g_eid, input, &fsize);
+
+    printf("fsize: %zu\n", fsize);
+
+    unsigned char *buffer = (unsigned char *)malloc((fsize*2)*sizeof(unsigned char));
+
+    ecall_convert_sgxfile_to_file(g_eid, buffer, fsize, input);
+
+    fwrite(buffer, 1, fsize, ofp);
     fclose(ofp);
     return 0;
 }
@@ -890,7 +924,9 @@ void *thread_func(void *arg){
     convert_file_to_sgxfile("tablemap_offset", "sgx_tablemap_offset");
     convert_file_to_sgxfile("type_table", "sgx_type_table");    
     
+    
     ecall_runtime_checkpoint(g_eid);
+
     pthread_exit(NULL);
 }
 
@@ -921,6 +957,10 @@ main(int argc, char *argv[])
         perror("sigaction");
         return 1;
     }
+
+
+
+    
 
     /////////////////////////////////////////
 
@@ -1079,17 +1119,20 @@ main(int argc, char *argv[])
 
     /* Init runtime */
     if (!init_runtime(max_thread_num)) {
+        printf("Failed to init runtime 1086\n");
         return -1;
     }
 
     /* Set log verbose level */
     if (!set_log_verbose_level(log_verbose_level)) {
+        printf("Failed to set log level 1092\n");
         goto fail1;
     }
 
     /* Load WASM byte buffer from WASM bin file */
     if (!(wasm_file_buf =
               (uint8_t *)read_file_to_buffer(wasm_file, &wasm_file_size))) {
+        printf("Failed to read file to buffer 1099\n");
         goto fail1;
     }
 
@@ -1097,6 +1140,7 @@ main(int argc, char *argv[])
     if (!(wasm_module = load_module(wasm_file_buf, wasm_file_size, error_buf,
                                     sizeof(error_buf)))) {
         printf("%s\n", error_buf);
+        printf("Failed to load module 1107\n");
         goto fail2;
     }
 
@@ -1105,6 +1149,7 @@ main(int argc, char *argv[])
                        env_list_size, 0, 1, 2, argv, argc, addr_pool,
                        addr_pool_size)) {
         printf("%s\n", "set wasi arguments failed.\n");
+        printf("Failed to set wasi arguments 1117\n");
         goto fail3;
     }
 
@@ -1113,6 +1158,7 @@ main(int argc, char *argv[])
               instantiate_module(wasm_module, stack_size, heap_size, error_buf,
                                  sizeof(error_buf)))) {
         printf("%s\n", error_buf);
+        printf("Failed to instantiate module 1125\n");
         goto fail3;
     }
 
@@ -1122,6 +1168,8 @@ main(int argc, char *argv[])
         app_instance_func(wasm_module_inst, func_name, argc - 1, argv + 1);
     else
         app_instance_main(wasm_module_inst, argc, argv);
+        
+
 
         // if(signal_requested){
         //     printf("Signal requested\n");
@@ -1141,10 +1189,12 @@ main(int argc, char *argv[])
 
     /* Deinstantiate module */
     deinstantiate_module(wasm_module_inst);
+    printf("------Deinstantiate module\n");
 
 fail3:
     /* Unload module */
     unload_module(wasm_module);
+    printf("------Unload module\n");
 
 fail2:
     /* Free the file buffer */
@@ -1153,6 +1203,7 @@ fail2:
 fail1:
     /* Destroy runtime environment */
     destroy_runtime();
+    printf("------Destroy runtime environment\n");
 
     return ret;
 }
