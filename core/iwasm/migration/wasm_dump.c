@@ -117,27 +117,14 @@ int get_opcode_offset(uint8 *ip, uint8 *ip_lim) {
 // TODO: コードごちゃごちゃで読めないので、整理する
 uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool is_return_address) {
     
-    
-    // SGX_FILE *tablemap_func = open_image("tablemap_func_sgx", "rb+");
-    // sgx_fwrite(&ta, sizeof(ta), 1, tablemap_func);
-
-    
-    // convert_binary_to_sgx_file("tablemap_func", "sgx_tablemap_func");
     SGX_FILE *tablemap_func = sgx_fopen("sgx_tablemap_func", "rb", &key);
-    if(tablemap_func == NULL) ocall_print("-----------------Failed to open sgx_tablemap_func\n");
-        // ocall_exit(1);
-    
-    // if (!tablemap_func) ocall_print("not found tablemap_func\n");
+    if(tablemap_func == NULL) ocall_print("not found tablemap_func\n");
 
-    // convert_binary_to_sgx_file("tablemap_offset", "sgx_tablemap_offset");
     SGX_FILE *tablemap_offset = sgx_fopen("sgx_tablemap_offset", "rb", &key);
-    if (!tablemap_offset) ocall_print("-----------not found tablemap_offset\n");
-    // // if (!tablemap_offset) ocall_print("not found tablemap_offset\n");
+    if (!tablemap_offset) ocall_print("not found tablemap_offset\n");
 
-    // convert_binary_to_sgx_file("type_table", "sgx_type_table");
     SGX_FILE *type_table = sgx_fopen("sgx_type_table", "rb", &key);
-    if (!type_table) ocall_print("-----------not found type_table\n");
-    // // if (!type_table) ocall_print("not found type_table\n");
+    if (!type_table) ocall_print("not found type_table\n");
     
     // tablemap_func
     sgx_fseek(tablemap_func, fidx*sizeof(uint32)*3, SEEK_SET);

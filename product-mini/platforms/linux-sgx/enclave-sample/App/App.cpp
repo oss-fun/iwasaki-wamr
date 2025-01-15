@@ -865,8 +865,6 @@ int convert_file_to_sgxfile(const char* input, const char* output){
     // char file[32];
     // sprintf(file, "reverse_%s", input);
 
-   
-
     fseek(ifp, 0, SEEK_END);
     long fsize = ftell(ifp);
     fseek(ifp, 0, SEEK_SET);
@@ -958,11 +956,6 @@ main(int argc, char *argv[])
         return 1;
     }
 
-
-
-    
-
-    /////////////////////////////////////////
 
     int32_t ret = -1;
     char *wasm_file = NULL;
@@ -1189,12 +1182,12 @@ main(int argc, char *argv[])
 
     /* Deinstantiate module */
     deinstantiate_module(wasm_module_inst);
-    printf("------Deinstantiate module\n");
+    // printf("------Deinstantiate module\n");
 
 fail3:
     /* Unload module */
     unload_module(wasm_module);
-    printf("------Unload module\n");
+    // printf("------Unload module\n");
 
 fail2:
     /* Free the file buffer */
@@ -1203,7 +1196,7 @@ fail2:
 fail1:
     /* Destroy runtime environment */
     destroy_runtime();
-    printf("------Destroy runtime environment\n");
+    // printf("------Destroy runtime environment\n");
 
     return ret;
 }
