@@ -295,7 +295,7 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         sgx_fclose(fp);
     } while(frame = frame->prev_frame);
 
-    ocall_printf_int("stack_count: ", i);
+    ocall_printf_int("\nstack_count: ", i);
 
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");

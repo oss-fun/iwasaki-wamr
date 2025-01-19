@@ -48,7 +48,7 @@ static SGX_FILE* open_image(const char* file, const char* flag) {
     // SGX_FILE *fp = sgx_fopen(file, flag, &key);
 
     if (fp == NULL) {
-        ocall_fprintf_str("open_image, failed to open", file);
+        // ocall_fprintf_str("open_image, failed to open", file);
         // ocall_printf_int("errno migration l48", errno);
         return NULL;
     }
@@ -56,36 +56,36 @@ static SGX_FILE* open_image(const char* file, const char* flag) {
 }
 
 
-static void convert_binary_to_sgx_file(const char* file_name, const char* sgx_file_name) {
-    uint8_t *file_buf;
-    uint32_t file_size;
+// static void convert_binary_to_sgx_file(const char* file_name, const char* sgx_file_name) {
+//     uint8_t *file_buf;
+//     uint32_t file_size;
 
-    ocall_get_file_size(file_name, &file_size);
+//     ocall_get_file_size(file_name, &file_size);
 
 
-    ocall_printf_size("file_size", file_size);
+//     ocall_printf_size("file_size", file_size);
    
-    file_buf = (uint8_t *)malloc(sizeof(uint8_t) * file_size);
-    if(file_buf == NULL) {
-        ocall_fprintf_str("convert_binary_to_sgx_file, failed to allocate memory", "");
-        return;
-    }
+//     file_buf = (uint8_t *)malloc(sizeof(uint8_t) * file_size);
+//     if(file_buf == NULL) {
+//         ocall_fprintf_str("convert_binary_to_sgx_file, failed to allocate memory", "");
+//         return;
+//     }
 
-    ocall_print("-----------\n");
+//     ocall_print("-----------\n");
 
-    ocall_read_file_to_buffer(file_name, file_size, file_buf);
-
-
-    // ocall_write_buffer_to_file(sgx_file_name, file_buf, file_size);
+//     ocall_read_file_to_buffer(file_name, file_size, file_buf);
 
 
-    SGX_FILE *fp = sgx_fopen_auto_key(sgx_file_name, "wb");
-    sgx_fwrite(file_buf, file_size, 1, fp);
-    sgx_fclose(fp);
+//     // ocall_write_buffer_to_file(sgx_file_name, file_buf, file_size);
+
+
+//     SGX_FILE *fp = sgx_fopen_auto_key(sgx_file_name, "wb");
+//     sgx_fwrite(file_buf, file_size, 1, fp);
+//     sgx_fclose(fp);
 
 
 
-}
+// }
  
 
 

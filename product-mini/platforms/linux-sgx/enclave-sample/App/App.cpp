@@ -48,32 +48,31 @@ void
 ocall_print(const char *str)
 {
     printf("%s", str);
-    // std::cout << str << std::endl;
 }
 
 void ocall_printf_int(const char *str, uint32_t val){
     fprintf(stderr, "%s %lu\n", str, val);
 }
 
-void ocall_fprintf_str(const char *str1, const char *str2){
-    fprintf(stderr, "%s %s\n", str1, str2);
-}
+// void ocall_fprintf_str(const char *str1, const char *str2){
+//     fprintf(stderr, "%s %s\n", str1, str2);
+// }
 
-void ocall_print_key(const uint8_t *key) {
-    printf("key: ");
-    for (int i = 0; i < 16; i++) {
-        printf("%02x", key[i]);
-    }
-    printf("\n");
-}
+// void ocall_print_key(const uint8_t *key) {
+//     printf("key: ");
+//     for (int i = 0; i < 16; i++) {
+//         printf("%02x", key[i]);
+//     }
+//     printf("\n");
+// }
 
-void ocall_print_ssize_t(ssize_t val) {
-    printf("val ssize_t: %ld\n", val);
-}
+// void ocall_print_ssize_t(ssize_t val) {
+//     printf("val ssize_t: %ld\n", val);
+// }
 
-void ocall_printf_size(const char* str, size_t val){
-    printf("%s %zu\n", str, val);
-}
+// void ocall_printf_size(const char* str, size_t val){
+//     printf("%s %zu\n", str, val);
+// }
 
 
 void ocall_exit(int8_t status_num){
@@ -81,150 +80,150 @@ void ocall_exit(int8_t status_num){
 }
 
 
-unsigned char* ocall_read_binaryfile(const char *filename){
-    // ファイルをバイナリモードで開く
-    FILE *file = fopen(filename, "rb");
+// unsigned char* ocall_read_binaryfile(const char *filename){
+//     // ファイルをバイナリモードで開く
+//     FILE *file = fopen(filename, "rb");
 
-    // ファイルサイズを取得
-    fseek(file, 0, SEEK_END);
-    long fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
+//     // ファイルサイズを取得
+//     fseek(file, 0, SEEK_END);
+//     long fileSize = ftell(file);
+//     fseek(file, 0, SEEK_SET);
 
-    // ファイルサイズのメモリを確保
-    unsigned char *buffer = (unsigned char*)malloc(fileSize);
-
-
-    // ファイルの内容を読み込む
-    size_t bytesRead = fread(buffer, 1, fileSize, file);
-
-    FILE *file2 = fopen("test_binary", "wb");
-    fwrite(buffer, fileSize, 1, file2);
-    fclose(file2);
-
-    // ファイルを閉じる
-    fclose(file);
-    return buffer;
-}
+//     // ファイルサイズのメモリを確保
+//     unsigned char *buffer = (unsigned char*)malloc(fileSize);
 
 
+//     // ファイルの内容を読み込む
+//     size_t bytesRead = fread(buffer, 1, fileSize, file);
+
+//     FILE *file2 = fopen("test_binary", "wb");
+//     fwrite(buffer, fileSize, 1, file2);
+//     fclose(file2);
+
+//     // ファイルを閉じる
+//     fclose(file);
+//     return buffer;
+// }
 
 
 
-void ocall_get_file_size(const char* filename, uint32_t* ret_size) {
-    FILE *file;
-    int file_size;
-    if (!(file = fopen(filename, "rb"))) {
-        printf("Read file to buffer failed: open file %s failed.\n", filename);
-        // printf("errno: %d\n", errno);
-        return ;
-    }
-
-    fseek(file, 0, SEEK_END);
-    file_size = ftell(file);
-
-    *ret_size = file_size;
-
-    fclose(file);
-}
-
-void ocall_read_file(const char* path, uint8_t* buffer, size_t size, size_t* read_size) {
-
-    FILE* file = fopen(path, "rb");
-    if (file == NULL) {
-
-        *read_size = 0;
-        return;
-    }
-
-    fseek(file, 0, SEEK_SET);
 
 
-    *read_size = fread(buffer, 1, size, file);
+// void ocall_get_file_size(const char* filename, uint32_t* ret_size) {
+//     FILE *file;
+//     int file_size;
+//     if (!(file = fopen(filename, "rb"))) {
+//         printf("Read file to buffer failed: open file %s failed.\n", filename);
+//         // printf("errno: %d\n", errno);
+//         return ;
+//     }
+
+//     fseek(file, 0, SEEK_END);
+//     file_size = ftell(file);
+
+//     *ret_size = file_size;
+
+//     fclose(file);
+// }
+
+// void ocall_read_file(const char* path, uint8_t* buffer, size_t size, size_t* read_size) {
+
+//     FILE* file = fopen(path, "rb");
+//     if (file == NULL) {
+
+//         *read_size = 0;
+//         return;
+//     }
+
+//     fseek(file, 0, SEEK_SET);
+
+
+//     *read_size = fread(buffer, 1, size, file);
     
-    printf("read file size: %zu\n", *read_size);
-    fclose(file);
-}
+//     printf("read file size: %zu\n", *read_size);
+//     fclose(file);
+// }
 
 
 
-void
-ocall_read_file_to_buffer(const char *filename, uint32_t ret_size, uint8_t **buffer_out){
-    uint8_t *buffer;
-    FILE *file;
-    int file_size, read_size;
-    printf("filename: %s\n", filename);
+// void
+// ocall_read_file_to_buffer(const char *filename, uint32_t ret_size, uint8_t **buffer_out){
+//     uint8_t *buffer;
+//     FILE *file;
+//     int file_size, read_size;
+//     printf("filename: %s\n", filename);
 
-    file_size = ret_size;
+//     file_size = ret_size;
 
-    if (!filename || !ret_size) {
-        printf("Read file to buffer failed: invalid filename or ret size.\n");
-        return;
-    }
+//     if (!filename || !ret_size) {
+//         printf("Read file to buffer failed: invalid filename or ret size.\n");
+//         return;
+//     }
 
-    if (!(file = fopen(filename, "rb"))) {
-        printf("Read file to buffer failed: open file %s failed.\n", filename);
-        return ;
-    }
+//     if (!(file = fopen(filename, "rb"))) {
+//         printf("Read file to buffer failed: open file %s failed.\n", filename);
+//         return ;
+//     }
 
-    if (!(buffer = (uint8_t *)malloc(sizeof(uint8_t) * file_size))) {
-        printf("Read file to buffer failed: alloc memory failed.\n");
-        fclose(file);
-        return;
-    }
+//     if (!(buffer = (uint8_t *)malloc(sizeof(uint8_t) * file_size))) {
+//         printf("Read file to buffer failed: alloc memory failed.\n");
+//         fclose(file);
+//         return;
+//     }
 
-    read_size = fread(buffer, 1, file_size, file);
-    fclose(file);
+//     read_size = fread(buffer, 1, file_size, file);
+//     fclose(file);
 
-    // printf("Read size: %d\n", read_size);
-    // printf("File size: %d\n", file_size);
-    // printf("ret_size: %d\n", ret_size);
+//     // printf("Read size: %d\n", read_size);
+//     // printf("File size: %d\n", file_size);
+//     // printf("ret_size: %d\n", ret_size);
 
 
-    if (read_size != file_size) {
-        printf("Read file to buffer failed: read file content failed.\n");
-        // free(buffer);
-        return;
-    }
+//     if (read_size != file_size) {
+//         printf("Read file to buffer failed: read file content failed.\n");
+//         // free(buffer);
+//         return;
+//     }
 
-    *buffer_out = buffer;
-    if(buffer == NULL){
-        printf("buffer is NULL\n");
+//     *buffer_out = buffer;
+//     if(buffer == NULL){
+//         printf("buffer is NULL\n");
         
-    }
-    // free(buffer);
+//     }
+//     // free(buffer);
 
-    // for (size_t i = file_size-100; i < file_size; i++) {
-    //     printf("buffer_out[%zu] = %u (0x%02X)\n", i, (*buffer_out)[i], (*buffer_out)[i]);
-    // }
+//     // for (size_t i = file_size-100; i < file_size; i++) {
+//     //     printf("buffer_out[%zu] = %u (0x%02X)\n", i, (*buffer_out)[i], (*buffer_out)[i]);
+//     // }
 
-    // FILE *file2 = fopen("test_binary", "wb");
-    // fwrite(*buffer_out, file_size, 1, file2);
-    // fclose(file2);
+//     // FILE *file2 = fopen("test_binary", "wb");
+//     // fwrite(*buffer_out, file_size, 1, file2);
+//     // fclose(file2);
 
-    // return buffer;
-}
+//     // return buffer;
+// }
 
 
-void ocall_write_buffer_to_file(const char* output_file_name, uint8_t **buffer, uint32_t buffer_size) {
-    FILE *output_file = fopen(output_file_name, "wb");
-    if (output_file == NULL) {
-        printf("Failed to open output file\n");
-        return;
-    }
-    // printf("buffer size: %d\n", buffer_size);
+// void ocall_write_buffer_to_file(const char* output_file_name, uint8_t **buffer, uint32_t buffer_size) {
+//     FILE *output_file = fopen(output_file_name, "wb");
+//     if (output_file == NULL) {
+//         printf("Failed to open output file\n");
+//         return;
+//     }
+//     // printf("buffer size: %d\n", buffer_size);
 
-    // for (size_t i = buffer_size-100; i < buffer_size; i++) {
-    //     printf("buffer[%zu] = %u (0x%02X)\n", i, (*buffer)[i], (*buffer)[i]);
-    // }
+//     // for (size_t i = buffer_size-100; i < buffer_size; i++) {
+//     //     printf("buffer[%zu] = %u (0x%02X)\n", i, (*buffer)[i], (*buffer)[i]);
+//     // }
 
-    uint32_t written_size = fwrite(*buffer, 1, buffer_size, output_file);
-    printf("written size: %d\n", written_size);
-    if (written_size != buffer_size) {
-        printf("Failed to write all data to file\n");
-    }
+//     uint32_t written_size = fwrite(*buffer, 1, buffer_size, output_file);
+//     printf("written size: %d\n", written_size);
+//     if (written_size != buffer_size) {
+//         printf("Failed to write all data to file\n");
+//     }
 
-    fclose(output_file);
-}
+//     fclose(output_file);
+// }
 
 
 
@@ -922,7 +921,6 @@ void *thread_func(void *arg){
     convert_file_to_sgxfile("tablemap_offset", "sgx_tablemap_offset");
     convert_file_to_sgxfile("type_table", "sgx_type_table");    
     
-    
     ecall_runtime_checkpoint(g_eid);
 
     pthread_exit(NULL);
@@ -947,12 +945,11 @@ main(int argc, char *argv[])
 
     struct sigaction sa;
 
+    sigemptyset(&sa.sa_mask);
     sa.sa_handler = wasm_interp_sigint;
     sa.sa_flags = 0;
-    sigemptyset(&sa.sa_mask);
-
+    
     if (sigaction(SIGINT, &sa, NULL) == -1) {
-        perror("sigaction");
         return 1;
     }
 

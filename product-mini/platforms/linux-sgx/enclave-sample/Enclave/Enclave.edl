@@ -28,8 +28,8 @@ enclave {
         public void ecall_test_print();
         public void ecall_runtime_checkpoint();
         public void ecall_set_restore_flag();
-        public void ecall_convert_file_to_sgxfile([in,size=len] unsigned char *decMessageIn, size_t len, [in,string]const char *output);
-        public void ecall_convert_sgxfile_to_file([out, size=len]unsigned char *decMessageIn, size_t len, [in,string]const char *input);
+        public void ecall_convert_file_to_sgxfile([in,size=len] unsigned char *buffer, size_t len, [in,string]const char *output);
+        public void ecall_convert_sgxfile_to_file([out,size=len]unsigned char *buffer, size_t len, [in,string]const char *input);
         public void ecall_get_sgxfile_size([in,string]const char *sgxfilename, [out]size_t *size);
     };
 
@@ -37,16 +37,16 @@ enclave {
         /* define OCALLs here. */
         void ocall_print([in, string]const char* str);
         void ocall_printf_int([in, string]const char* str, uint32_t val);
-        void ocall_fprintf_str([in, string]const char* str1, [in, string]const char* str2);
-        void ocall_printf_size([in, string]const char* str, size_t val);
+        // void ocall_fprintf_str([in, string]const char* str1, [in, string]const char* str2);
+        // void ocall_printf_size([in, string]const char* str, size_t val);
 
         void ocall_exit(int8_t status_num);
-        unsigned char* ocall_read_binaryfile([in, string]const char *filename);
-        void ocall_print_key([in, count=16] const uint8_t *key);
+        // unsigned char* ocall_read_binaryfile([in, string]const char *filename);
+        // void ocall_print_key([in, count=16] const uint8_t *key);
 
-        void ocall_get_file_size([in, string] const char* filename, [out] uint32_t* ret_size);
-        void ocall_read_file([in, string] const char* path, [out] uint8_t* buffer, size_t size, [out] size_t* read_size);
-        void ocall_read_file_to_buffer([in, string]const char *filename, uint32_t ret_size, [out, count=ret_size]uint8_t **buffer_out);
-        void ocall_write_buffer_to_file([in, string]const char* output_file_name, [in, out, count=buffer_size]uint8_t **buffer, uint32_t buffer_size);
+        // void ocall_get_file_size([in, string] const char* filename, [out] uint32_t* ret_size);
+        // void ocall_read_file([in, string] const char* path, [out] uint8_t* buffer, size_t size, [out] size_t* read_size);
+        // void ocall_read_file_to_buffer([in, string]const char *filename, uint32_t ret_size, [out, count=ret_size]uint8_t **buffer_out);
+        // void ocall_write_buffer_to_file([in, string]const char* output_file_name, [in, out, count=buffer_size]uint8_t **buffer, uint32_t buffer_size);
     };
 };

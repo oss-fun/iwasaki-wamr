@@ -30,11 +30,11 @@ enclave_print(const char *message)
     ocall_print(message);
 }
 
-void 
-enclave_print_size(size_t size)
-{
-    ocall_printf_int("enclave_print_Size: ", size);
-}
+// void 
+// enclave_print_size(size_t size)
+// {
+//     ocall_printf_int("enclave_print_Size: ", size);
+// }
 
 // int
 // enclave_print(const char *message)
@@ -747,7 +747,55 @@ void
 ecall_runtime_checkpoint(void)
 {
     wasm_runtime_checkpoint();
-    ocall_print("Checkpointed\n");
+    // ocall_print(" Checkpoint\n");
+}
+
+static sgx_key_128bit_t key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf };
+
+void ecall_convert_file_to_sgxfile(unsigned char *buffer, size_t len, const char *output){
+    
+    
+    SGX_FILE *fp = sgx_fopen(output, "wb", &key);
+    if (fp == NULL) {
+        enclave_print("Failed to open file fp1\n");
+        return;
+    }
+    sgx_fwrite(buffer, 1, len, fp);
+    sgx_fclose(fp);
+
+    // SGX_FILE *fp2 = sgx_fopen(output, "rb", &key);
+    // if (fp2 == NULL) {
+    //     enclave_print("Failed to open file fp2\n");
+    //     return;
+    // }
+
+    // sgx_fread(encMessageOut, lenOut, 1, fp2);
+
+}
+
+void ecall_convert_sgxfile_to_file(unsigned char *buffer, size_t len, const char *input){
+    SGX_FILE *fp = sgx_fopen(input, "rb", &key);
+    if (fp == NULL) {
+        // enclave_print("Failed to open file fp 922\n");
+        return;
+    }
+    sgx_fread(buffer, len, 1, fp);
+    sgx_fclose(fp);
+}
+
+void ecall_get_sgxfile_size(const char *sgxfilename, size_t *size){
+    // enclave_print("ecall_get_sgxfile_size\n");
+    SGX_FILE *fp = sgx_fopen(sgxfilename, "rb", &key);
+    if (fp == NULL) {
+        // enclave_print("Failed to open file fp 911\n");
+        return;
+    }
+    sgx_fseek(fp, 0, SEEK_END);
+    *size = sgx_ftell(fp);
+    // size_t size2 = sgx_ftell(fp);
+    sgx_fclose(fp);
+
+    // enclave_print_size(size2);
 }
 
 void
@@ -885,52 +933,5 @@ fail1:
     wasm_runtime_destroy();
 }
 
-static sgx_key_128bit_t key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0xa, 0xb, 0xc, 0xd, 0xe, 0xf };
 
-void ecall_convert_file_to_sgxfile(unsigned char *decMessageIn, size_t len, const char *output){
-    
-    
-    SGX_FILE *fp = sgx_fopen(output, "wb", &key);
-    if (fp == NULL) {
-        enclave_print("Failed to open file fp1\n");
-        return;
-    }
-    sgx_fwrite(decMessageIn, 1, len, fp);
-    sgx_fclose(fp);
-
-    // SGX_FILE *fp2 = sgx_fopen(output, "rb", &key);
-    // if (fp2 == NULL) {
-    //     enclave_print("Failed to open file fp2\n");
-    //     return;
-    // }
-
-    // sgx_fread(encMessageOut, lenOut, 1, fp2);
-
-}
-
-void ecall_get_sgxfile_size(const char *sgxfilename, size_t *size){
-    enclave_print("ecall_get_sgxfile_size\n");
-    SGX_FILE *fp = sgx_fopen(sgxfilename, "rb", &key);
-    if (fp == NULL) {
-        enclave_print("Failed to open file fp 911\n");
-        return;
-    }
-    sgx_fseek(fp, 0, SEEK_END);
-    *size = sgx_ftell(fp);
-    size_t size2 = sgx_ftell(fp);
-    sgx_fclose(fp);
-
-    enclave_print_size(size2);
-
-}
-
-void ecall_convert_sgxfile_to_file(unsigned char *decMessageIn, size_t len, const char *input){
-    SGX_FILE *fp = sgx_fopen(input, "rb", &key);
-    if (fp == NULL) {
-        enclave_print("Failed to open file fp 922\n");
-        return;
-    }
-    sgx_fread(decMessageIn, len, 1, fp);
-    sgx_fclose(fp);
-}
 
