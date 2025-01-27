@@ -50,7 +50,7 @@ ocall_print(const char *str)
     printf("%s", str);
 }
 
-void ocall_printf_int(const char *str, uint32_t val){
+void ocall_printf_int(const char *str, uint64_t val){
     fprintf(stderr, "%s %lu\n", str, val);
 }
 
@@ -952,6 +952,10 @@ main(int argc, char *argv[])
     if (sigaction(SIGINT, &sa, NULL) == -1) {
         return 1;
     }
+
+    struct timespec ts1;
+    clock_gettime(CLOCK_MONOTONIC, &ts1);
+    fprintf(stderr, "boot_start: %lu\n", (uint64_t)(ts1.tv_sec*1e9) + ts1.tv_nsec);
 
 
     int32_t ret = -1;

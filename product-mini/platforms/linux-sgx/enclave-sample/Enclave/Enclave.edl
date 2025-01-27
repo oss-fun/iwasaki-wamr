@@ -36,7 +36,7 @@ enclave {
     untrusted {
         /* define OCALLs here. */
         void ocall_print([in, string]const char* str);
-        void ocall_printf_int([in, string]const char* str, uint32_t val);
+        void ocall_printf_int([in, string]const char* str, uint64_t val);
         // void ocall_fprintf_str([in, string]const char* str1, [in, string]const char* str2);
         // void ocall_printf_size([in, string]const char* str, size_t val);
 

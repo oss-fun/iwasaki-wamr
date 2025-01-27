@@ -15,6 +15,7 @@ void set_restore_flag(bool f)
 {
     restore_flag = f;
 }
+
 bool get_restore_flag()
 {
     return restore_flag;
@@ -288,6 +289,8 @@ int wasm_restore(WASMModuleInstance **module,
     // fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
     // printf("Success to restore linear memory\n");
 
+    ocall_printf_int("memory:", get_time(ts1, ts2));
+
     // restore globals
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     wasm_restore_global(*module, *globals, global_data, global_addr);
@@ -295,12 +298,16 @@ int wasm_restore(WASMModuleInstance **module,
     // fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
     // printf("Success to restore globals\n");
 
+    ocall_printf_int("global:", get_time(ts1, ts2));
+
     // restore program counter
     clock_gettime(CLOCK_MONOTONIC, &ts1);
     wasm_restore_program_counter(*module, frame_ip);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
     // printf("Success to program counter\n");
+
+    ocall_printf_int("program counter:", get_time(ts1, ts2));
 
     return 0;
 }

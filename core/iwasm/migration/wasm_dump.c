@@ -136,7 +136,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
         // exit(1);
 
         ocall_print("tablemap_func error\n");
-        // ocall_exit(1);
+        ocall_exit(1);
     }
     sgx_fread(&tablemap_offset_addr, sizeof(uint64), 1, tablemap_func);
 
@@ -160,7 +160,7 @@ uint8* get_type_stack(uint32 fidx, uint32 offset, uint32* type_stack_size, bool 
         // perror("tablemap_offsetがおかしい\n");
         // exit(1);
 
-        // ocall_exit(1);
+        ocall_exit(1);
     }
     // type_table_addr = pre_type_table_addr;
 
@@ -295,47 +295,12 @@ wasm_dump_stack(WASMExecEnv *exec_env, struct WASMInterpFrame *frame)
         sgx_fclose(fp);
     } while(frame = frame->prev_frame);
 
-    ocall_printf_int("\nstack_count: ", i);
+    ocall_printf_int("---stack_count: ", i);
 
     // frame stackのサイズを保存
     SGX_FILE *fp = open_image("frame.img", "wb");
     sgx_fwrite(&i, sizeof(uint32), 1, fp);
     sgx_fclose(fp);
-
-
-    // SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
-
-   
-
-    // SGX_FILE *fp2 = open_image("frame_key.dat", "w");
-    // sgx_fclose(fp2);
-
-    // errno = 0;
-    // int32_t result = sgx_fexport_auto_key("frame.img", &key);
-
-    // ocall_print_key(&key);
-
-    // if(result != 0) {
-    //     ocall_printf_int("failed to export key: ", result);
-    //     ocall_printf_int("errno: ", errno);
-    // }else {
-    //     ocall_fprintf_str("key exported", "");
-    // }
-
-
-
-
-    // sgx_fexport_auto_key("test_fexport", NULL);
-
-    // ocall_print_key(key);
-    // ocall_print("key printed\n");
-
-    // SGX_FILE *fp2 = sgx_fopen_auto_key("frame_key.dat", "wb");
-    // sgx_fwrite(&key, sizeof(sgx_key_128bit_t), 1, fp2);
-    // sgx_ferror(fp2);
-    // sgx_fclose(fp2);
-
-
 
     return 0;
 }
@@ -544,7 +509,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_memory(memory);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "memory, %lu\n", get_time(ts1, ts2));
-    // ocall_printf_int("memory:", get_time(ts1, ts2));
+    ocall_printf_int("\nmemory:", get_time(ts1, ts2));
 
     if (rc < 0) {
         LOG_ERROR("Failed to dump linear memory\n");
@@ -556,6 +521,7 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_global(module, globals, global_data);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "global, %lu\n", get_time(ts1, ts2));
+    ocall_printf_int("global:", get_time(ts1, ts2));
     if (rc < 0) {
         LOG_ERROR("Failed to dump globals\n");
         return rc;
@@ -566,6 +532,8 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_program_counter(module, cur_func, frame_ip);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "program counter, %lu\n", get_time(ts1, ts2));
+    ocall_printf_int("program counter:", get_time(ts1, ts2));
+
     if (rc < 0) {
         LOG_ERROR("Failed to dump program_counter\n");
         return rc;
@@ -576,6 +544,8 @@ int wasm_dump(WASMExecEnv *exec_env,
     rc = wasm_dump_stack(exec_env, frame);
     clock_gettime(CLOCK_MONOTONIC, &ts2);
     // fprintf(stderr, "stack, %lu\n", get_time(ts1, ts2));
+    ocall_printf_int("stack:", get_time(ts1, ts2));
+
     if (rc < 0) {
         LOG_ERROR("Failed to dump frame\n");
         return rc;

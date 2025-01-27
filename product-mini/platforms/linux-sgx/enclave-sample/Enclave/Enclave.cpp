@@ -116,12 +116,12 @@ ecall_set_restore_flag(void)
 {
     restore_flag = true;
 
-    if (restore_flag) {
-        enclave_print("Restore flag true\n");
-    }
-    else {
-        enclave_print("Restore flag false\n");
-    }
+    // if (restore_flag) {
+    //     enclave_print("Restore flag true\n");
+    // }
+    // else {
+    //     enclave_print("Restore flag false\n");
+    // }
 }
 
 static void
@@ -153,13 +153,7 @@ handle_cmd_init_runtime(uint64 *args, uint32 argc)
     init_args.mem_alloc_type = Alloc_With_System_Allocator;
 #endif
 
-    if (restore_flag) {
-        init_args.restore_flag = true;
-        enclave_print("init_args.restore_flag true\n");
-    }
-    else {
-        enclave_print("init_args.restore_flag false\n");
-    }
+    if (restore_flag) init_args.restore_flag = true;
 
 
     
